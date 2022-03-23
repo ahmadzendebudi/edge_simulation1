@@ -1,5 +1,4 @@
-   
-from simulator.core.event_heap import EventHeap   
+from simulator import core 
 import random
 randListId = []
 randListTime = []
@@ -8,7 +7,7 @@ for i in rng:
     randListId.append(random.randint(1, 1 <<32))
     randListTime.append(random.random())
 
-eheap = EventHeap()
+eheap = core.EventHeap()
 for i in rng:
     eheap.addEvent(randListTime[i], randListId[i])
     
