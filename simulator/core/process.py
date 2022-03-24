@@ -2,8 +2,11 @@ from abc import abstractmethod
 
 
 class Process:
-    def processId() -> int:
-        pass
+    def __init__(self, processId: int) -> None:
+        self._processId = processId
+    
+    def processId(self) -> int:
+        return self._processId
     
     @abstractmethod
     def wake():
