@@ -9,5 +9,5 @@ class Process:
         return self._processId
     
     @abstractmethod
-    def wake():
+    def wake(self) -> None:
         pass

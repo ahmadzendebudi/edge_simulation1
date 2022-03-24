@@ -1,10 +1,13 @@
-from simulator.core import Node
-from simulator.core import Connection
+from simulator import core
+from simulator import environment as env
 
-class MobileNode(Node):
-    def __init__(self, id, edgeConnection: Connection) -> None:
+class MobileNode(core.Node):
+    def __init__(self, id, edgeConnection: core.Connection) -> None:
         self._edgeConnection = edgeConnection
-        super(MobileNode, self).__init__(id)
+        super().__init__(id)
     
-    def edgeConnection(self) -> Connection:
+    def edgeConnection(self) -> core.Connection:
         self._edgeConnection
+    
+    def setup(self, env: env.TaskEnvironment):
+        self._env = env

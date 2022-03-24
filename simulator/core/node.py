@@ -1,3 +1,6 @@
+from abc import abstractmethod
+
+
 class Node:
     def __init__(self, id: int) -> None:
         self._id = id

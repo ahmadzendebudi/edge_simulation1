@@ -5,3 +5,5 @@ from simulator.core.simulator import Simulator
 from simulator.core.task import Task
 from simulator.core.node import Node
 from simulator.core.connection import Connection
+from simulator.core.environment import Environment
+from simulator.core.seeder import Seeder

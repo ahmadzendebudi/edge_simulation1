@@ -1,16 +1,23 @@
 from typing import Sequence
-from simulator.core import Node
-from simulator.core import Connection
+from simulator import core
+from simulator import environment as env
 
-class EdgeNode(Node):
-    def __init__(self, id: int, edgeConnections: Sequence[Connection],
-                 mobileDeviceConnections: Sequence[Connection]) -> None:
+class EdgeNode(core.Node):
+    def __init__(self, id: int, edgeConnections: Sequence[core.Connection],
+                 mobileDeviceConnections: Sequence[core.Connection]) -> None:
         self._edgeConnections = edgeConnections
         self._mobileDeviceConnections = mobileDeviceConnections
-        super(EdgeNode, self).__init__(id)
+        super().__init__(id)
     
-    def edgeConnections(self) -> Sequence[Connection]:
+    def edgeConnections(self) -> Sequence[core.Connection]:
         self._edgeConnections
     
-    def mobileDeviceConnections(self) -> Sequence[Connection]:
+    def mobileDeviceConnections(self) -> Sequence[core.Connection]:
         self._mobileDeviceConnections
+        
+    def setup(self, env: env.TaskEnvironment):
+        self._env = env
+        self._localQueue = core.TaskQueue()
+        self._TransmitQueue = core.TaskQueue()
+        self._multiplexQueue = core.TaskQueue()
+        

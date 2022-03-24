@@ -1,0 +1,5 @@
+{
+    "simulation_time": 10000,
+    "task_generator_lambda": 0.1,
+    "task_generator_prefetch_time": 1000
+}
