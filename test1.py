@@ -1,4 +1,6 @@
 import queue
 from simulator import Config
+import numpy as np
+from simulator import core
 
-print(Config.get("simulation_time"))
+sim = core.Simulator()

@@ -1,9 +1,12 @@
 from abc import abstractmethod
 
-
+class ProcessPlug:
+    @abstractmethod
+    def registerProcess(self, process) -> int:
+        pass
 class Process:
-    def __init__(self, processId: int) -> None:
-        self._processId = processId
+    def __init__(self, plug: ProcessPlug) -> None:
+        self._processId = plug.registerProcess(self)
     
     def processId(self) -> int:
         return self._processId

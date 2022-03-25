@@ -1,4 +1,5 @@
-from core.process import Process
+
+from simulator.core.process import Process
 
 class TaskTransmitter(Process):
     pass
