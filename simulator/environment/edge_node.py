@@ -2,8 +2,7 @@ from typing import Sequence
 from simulator.core import Node
 from simulator.core import Connection
 from simulator.core import TaskQueue
-from simulator.core.process import ProcessPlug
-from simulator.core.task_queue import TaskQueuePlug
+from simulator.core.simulator import Simulator
 
 class EdgeNode(Node):
     def __init__(self, id: int, edgeConnections: Sequence[Connection],
@@ -18,8 +17,5 @@ class EdgeNode(Node):
     def mobileDeviceConnections(self) -> Sequence[Connection]:
         self._mobileDeviceConnections
         
-    def setup(self, processPlug: ProcessPlug, taskQueuePlug: TaskQueuePlug):
-        self._localQueue = TaskQueue(taskQueuePlug)
-        self._TransmitQueue = TaskQueue(taskQueuePlug)
-        self._multiplexQueue = TaskQueue(taskQueuePlug)
-        
+    def setup(self, simulator: Simulator):
+        pass

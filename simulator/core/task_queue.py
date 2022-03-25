@@ -1,23 +1,20 @@
 
-from abc import abstractmethod
 from simulator.core.task import Task
 from queue import Queue
 
-class TaskQueuePlug:
-    @abstractmethod
-    def registerTaskQueue(self, taskQueue) -> int:
-        pass
-
 class TaskQueue:
-    def __init__(self, plug: TaskQueuePlug) -> None:
+    def __init__(self, readerProcessId: int) -> None:
+        self._readerProcessId = readerProcessId
         self._queue = Queue()
-        self._id = plug.registerTaskQueue(self)
+        
+    def setup(self, id: int) -> None:
+        self._id = id
         
     def id(self) -> int:
         return self._id
     
     def readerProcessId(self):
-        raise NotImplementedError()
+        return self._readerProcessId
     
     def put(self, task: Task):
         self._queue.put(task)
