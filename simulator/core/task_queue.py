@@ -1,4 +1,5 @@
 
+from xmlrpc.client import boolean
 from simulator.core.task import Task
 from queue import Queue
 
@@ -19,8 +20,11 @@ class TaskQueue:
     def put(self, task: Task):
         self._queue.put(task)
         
+    def qsize(self) -> int:
+        return self._queue.qsize()
+    
     def get(self) -> Task:
-        return self._queue.get()
+        return self._queue.get_nowait()
 
     
     

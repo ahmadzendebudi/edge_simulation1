@@ -1,13 +1,15 @@
+from simulator.common import Common
 from simulator.core.node import Node
 from simulator.core.connection import Connection
 from simulator.core.simulator import Simulator
 from simulator.core.task_queue import TaskQueue
 from simulator.core.task import Task
-from simulator.processes.mobile.task_distributer import TaskDistributer, TaskDistributerPlug
-from simulator.processes.mobile.task_generator import TaskGenerator, TaskGeneratorPlug
-from simulator.processes.mobile.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug
+from simulator.processes.task_distributer import TaskDistributer, TaskDistributerPlug
+from simulator.processes.task_generator import TaskGenerator, TaskGeneratorPlug
+from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug
+from simulator.processes.task_runner import TaskRunner, TaskRunnerPlug
 
-class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug):
+class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug, TaskRunnerPlug):
     def __init__(self, id, edgeConnection: Connection) -> None:
         self._edgeConnection = edgeConnection
         super().__init__(id)
@@ -27,8 +29,13 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
         self._taskMultiplexer = TaskMultiplexer(self)
         simulator.registerProcess(self._taskMultiplexer)
         self._multiplexQueue = TaskQueue(self._taskMultiplexer.id)
+        simulator.registerTaskQueue(self._multiplexQueue)
         
-        #self._localQueue = TaskQueue(taskQueuePlug)
+        self._taskRunner = TaskRunner(self)
+        simulator.registerProcess(self._taskRunner)
+        self._localQueue = TaskQueue(self._taskRunner.id)
+        simulator.registerTaskQueue(self._localQueue)
+        
         #self._TransmitQueue = TaskQueue(taskQueuePlug)
     
     def registerTask(self, time: int) -> None:
@@ -38,7 +45,23 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
         return self._id
     
     def taskArrival(self, task: Task) -> None:
-        #TODO
+        self._simulator.registerTask(task)
+        self._multiplexQueue.put(task)
+        self._simulator.registerEvent(Common.time(), self._taskMultiplexer.id)
+    
+    def taskLocalExecution(self, task: Task) -> None:
+        self._localQueue.put(task)
+        self._simulator.registerEvent(Common.time(), self._taskRunner.id)
+    
+    def taskTransimission(self, task: Task) -> None:
         pass
     
+    def fetchTaskRunnerQueue(self) -> TaskQueue:
+        return self._localQueue
+    
+    def wakeTaskRunnerAt(self, time: int):
+        self._simulator.registerEvent(time, self._taskRunner.id)
+    
+    def taskRunComplete(self, task: Task):
+        pass
     

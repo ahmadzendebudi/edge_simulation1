@@ -13,9 +13,9 @@ class Task:
         return self._size
     def workload(self):
         return self._workload
-    def mobileNodeId(self):
-        return self._mobileNodeId
+    def nodeId(self):
+        return self._nodeId
     
     def __str__(self) -> str:
         return ("Task//id:" + str(self._id) + " size:" + str(self._size) +
-                " workload:" + str(self._workload) + " nodeId:" + str(self._mobileNodeId))
+                " workload:" + str(self._workload) + " nodeId:" + str(self._nodeId))
