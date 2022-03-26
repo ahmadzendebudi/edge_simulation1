@@ -1,0 +1,2 @@
+class BoxTaskEnvironment:
+    pass

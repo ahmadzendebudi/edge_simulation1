@@ -7,6 +7,7 @@ class Common:
             raise RuntimeError("time is still not set by the simulator, time should not be referenced before the simulator is created")
         return cls._time
     
+    @classmethod
     def setTime(cls, time: int):
         cls._time = time
         

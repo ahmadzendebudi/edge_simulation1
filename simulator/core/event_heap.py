@@ -11,8 +11,12 @@ class EventHeap:
         heapq.heappush(self._heap, EventHeap._Event(time, processId))
     
     def nextEvent(self) -> Tuple[int, int]:
+        '''returns (time: int, processId: int)'''
         event = heapq.heappop(self._heap)
         return (event._time, event._processId)
+    
+    def size(self) -> int:
+        return len(self._heap)
     
     class _Event:
         def __init__(self, time: int, processId: int) -> None:

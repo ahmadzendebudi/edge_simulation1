@@ -4,6 +4,7 @@ from simulator.core import EventHeap
 from simulator import Config
 from simulator import Common
 from simulator.core.environment import Environment
+from simulator.core.parcel import Parcel
 from simulator.core.process import Process
 from simulator.core.task import Task
 from simulator.core.task_queue import TaskQueue
@@ -17,6 +18,14 @@ class Simulator:
         self._taskQueueMap = {}
         self._nodeMap = {}
         self._taskMap = {}
+    
+    def run(self):
+        eventHeap = self._eventHeap
+        while eventHeap.size() > 0:
+            time, processId = eventHeap.nextEvent()
+            Common.setTime(time)
+            self.getProcess(processId).wake()
+            
     
     def setup(self, env: Environment):
         self._env = env
@@ -62,5 +71,9 @@ class Simulator:
     
     def registerEvent(self, time: int, processId: int) -> None:
         self._eventHeap.addEvent(time, processId)
+        
+    def sendParcel(self, parcel: Parcel, destNodeId: int) -> bool:
+        destNode = self.getNode(destNodeId)
+        return destNode.receiveParcel(parcel)
     
         

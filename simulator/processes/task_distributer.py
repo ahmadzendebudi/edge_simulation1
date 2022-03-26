@@ -9,6 +9,10 @@ class TaskDistributerPlug:
     def registerTask(self, time: int, processId: int) -> None:
         pass
     
+    @abstractmethod
+    def wakeTaskDistributerAt(self, time: int, processId: int) -> None:
+        pass
+    
 class TaskDistributer(Process):
     def __init__(self, plug: TaskDistributerPlug) -> None:
         super().__init__()
@@ -16,11 +20,15 @@ class TaskDistributer(Process):
         self._taskGenerationTime = Common.time()
         self._prefetchTime = Config.get("task_generator_prefetch_time")
         self._lambda = Config.get("task_generator_lambda")
-        self.wake()
+        self._simulationDuration = Config.get("task_generation_duration")
     
     def wake(self) -> None:
         #TODO generate tasks until Common.time() + prefeetchTime
-        while (self._taskGenerationTime < Common.time() + self._prefetchTime):
+        while (self._taskGenerationTime < Common.time() + self._prefetchTime and
+               self._taskGenerationTime < self._simulationDuration):
             self._taskGenerationTime += np.random.exponential(1/self._lambda)
-            self._plug.registerTask(self._taskGenerationTime, self._id)
+            if (self._taskGenerationTime < self._simulationDuration):
+                self._plug.registerTask(self._taskGenerationTime, self._id)
+        if (self._taskGenerationTime < self._simulationDuration):
+            self._plug.wakeTaskDistributerAt(self._taskGenerationTime)
         super().wake()
