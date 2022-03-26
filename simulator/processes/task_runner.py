@@ -7,15 +7,15 @@ from simulator.core.task_queue import TaskQueue
 
 class TaskRunnerPlug:
     @abstractmethod
-    def fetchTaskRunnerQueue(self) -> TaskQueue:
+    def fetchTaskRunnerQueue(self, processId: int) -> TaskQueue:
         pass
     
     @abstractmethod
-    def wakeTaskRunnerAt(self, time: int):
+    def wakeTaskRunnerAt(self, time: int, processId: int):
         pass
     
     @abstractmethod
-    def taskRunComplete(self, task: Task):
+    def taskRunComplete(self, task: Task, processId: int):
         pass
 
 class TaskRunner(Process):
@@ -27,12 +27,12 @@ class TaskRunner(Process):
         
     def wake(self) -> None:
         if (self._liveTask != None and self._liveTaskCompletionTime <= Common.time()):
-            self._plug.taskRunComplete(self._liveTask)
+            self._plug.taskRunComplete(self._liveTask, self._id)
             self._liveTask = None
             self._liveTaskCompletionTime = None
         
         if (self._liveTask == None):
-            queue = self._plug.fetchTaskRunnerQueue()
+            queue = self._plug.fetchTaskRunnerQueue(self._id)
             if queue.qsize != 0:
                 self._runTask(queue.get())
         return super().wake()
@@ -41,5 +41,5 @@ class TaskRunner(Process):
         #TODO I need to calculate task run duration properly!
         self._liveTask = task
         self._liveTaskCompletionTime = Common.time() + task.size() * task.workload * 0.001 #CPU speed
-        self._plug.wakeTaskRunnerAt(self._liveTaskCompletionTime)
+        self._plug.wakeTaskRunnerAt(self._liveTaskCompletionTime, self._id)
         

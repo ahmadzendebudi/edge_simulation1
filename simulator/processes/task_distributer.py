@@ -6,7 +6,7 @@ import numpy as np
 
 class TaskDistributerPlug:
     @abstractmethod
-    def registerTask(self, time: int) -> None:
+    def registerTask(self, time: int, processId: int) -> None:
         pass
     
 class TaskDistributer(Process):
@@ -22,5 +22,5 @@ class TaskDistributer(Process):
         #TODO generate tasks until Common.time() + prefeetchTime
         while (self._taskGenerationTime < Common.time() + self._prefetchTime):
             self._taskGenerationTime += np.random.exponential(1/self._lambda)
-            self._plug.registerTask(self._taskGenerationTime)
+            self._plug.registerTask(self._taskGenerationTime, self._id)
         super().wake()

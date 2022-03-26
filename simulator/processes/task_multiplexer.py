@@ -7,15 +7,15 @@ import numpy as np
 
 class TaskMultiplexerPlug:
     @abstractmethod
-    def fetchMultiplexerQueue(self) -> TaskQueue:
+    def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:
         pass
     
     @abstractmethod
-    def taskLocalExecution(self, task: Task) -> None:
+    def taskLocalExecution(self, task: Task, processId: int) -> None:
         pass
     
     @abstractmethod
-    def taskTransimission(self, task: Task) -> None:
+    def taskTransimission(self, task: Task, processId: int) -> None:
         pass
     
 class TaskMultiplexer(Process):
@@ -25,7 +25,7 @@ class TaskMultiplexer(Process):
         self._plug = plug
         
     def wake(self) -> None:
-        queue = self._plug.fetchMultiplexerQueue()
+        queue = self._plug.fetchMultiplexerQueue(self._id)
         if queue.qsize != 0:
             self._multiplex(queue.get())
         return super().wake()
@@ -34,7 +34,7 @@ class TaskMultiplexer(Process):
         #TODO this requires a lot of attention, for now it's just random
         #TODO it should be somehow plugable, instead of the multiplexer itself deciding the strategy
         if (np.random.randint(0, 1) == 1):
-            self._plug.taskLocalExecution(task)
+            self._plug.taskLocalExecution(task, self._id)
         else:
-            self._plug.taskTransimission(task)
+            self._plug.taskTransimission(task, self._id)
         
