@@ -38,7 +38,7 @@ class TaskTransmitter(Process):
         
         if (self._liveTask == None):
             queue = self._plug.fetchTaskTransmitterQueue(self._id)
-            if queue.qsize != 0:
+            if queue.qsize() != 0:
                 self._transmitTask(queue.get())
         return super().wake()
     

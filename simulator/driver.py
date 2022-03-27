@@ -3,8 +3,8 @@ from simulator.environment.task_environment import TaskEnvironment
 
 
 class Driver:
-    def run(taskEnvironment: TaskEnvironment):
+    def run(self, taskEnvironment: TaskEnvironment):
         simulator = Simulator()
-        taskEnvironment.setup(simulator)
+        taskEnvironment.initialize(simulator)
         simulator.run()
         

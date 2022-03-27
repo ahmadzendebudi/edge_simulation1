@@ -33,13 +33,13 @@ class TaskRunner(Process):
         
         if (self._liveTask == None):
             queue = self._plug.fetchTaskRunnerQueue(self._id)
-            if queue.qsize != 0:
+            if queue.qsize() != 0:
                 self._runTask(queue.get())
         return super().wake()
     
     def _runTask(self, task: Task):
         #TODO I need to calculate task run duration properly!
         self._liveTask = task
-        self._liveTaskCompletionTime = Common.time() + task.size() * task.workload * 0.001 #CPU speed
+        self._liveTaskCompletionTime = Common.time() + task.size() * task.workload() * 0.001 #CPU speed
         self._plug.wakeTaskRunnerAt(self._liveTaskCompletionTime, self._id)
         

@@ -1,12 +1,12 @@
 
 from xmlrpc.client import boolean
 from simulator.core.task import Task
-from queue import Queue
+from collections import deque
 
 class TaskQueue:
     def __init__(self, readerProcessId: int) -> None:
         self._readerProcessId = readerProcessId
-        self._queue = Queue()
+        self._queue = deque()
         
     def setup(self, id: int) -> None:
         self._id = id
@@ -18,13 +18,13 @@ class TaskQueue:
         return self._readerProcessId
     
     def put(self, task: Task):
-        self._queue.put(task)
+        self._queue.append(task)
         
     def qsize(self) -> int:
-        return self._queue.qsize()
+        return len(self._queue)
     
     def get(self) -> Task:
-        return self._queue.get_nowait()
+        return self._queue.popleft()
 
     
     

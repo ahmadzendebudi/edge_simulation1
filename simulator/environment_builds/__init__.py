@@ -1,1 +1,0 @@
-from simulator.environment_builds.box_task_environment import BoxTaskEnvironment

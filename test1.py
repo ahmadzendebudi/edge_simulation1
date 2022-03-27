@@ -1,11 +1,15 @@
 
 import numpy as np
-from simulator.common import Common
-from simulator.core.simulator import Simulator
-from simulator.core.task import Task
-from simulator.core.task_queue import TaskQueue
+from simulator.driver import Driver
+from simulator.environment.task_environment import TaskEnvironment
+from simulator.logger import LogOutputConsolePrint, Logger
+from simulator.world_builds.box_world import BoxWorld
 
-#simu = Simulator()
-a = [12, 45, 63] + [None]
-print(a)
-print(np.random.choice(a))
+Logger.registerLogOutput(LogOutputConsolePrint())
+
+world = BoxWorld()
+edgeNodes, mobileNodes = world.build()
+
+taskEnvironment = TaskEnvironment(edgeNodes, mobileNodes)
+driver = Driver()
+driver.run(taskEnvironment)

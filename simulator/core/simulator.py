@@ -3,6 +3,7 @@ import numpy as np
 from simulator.core import EventHeap
 from simulator import Config
 from simulator import Common
+from simulator.core.connection import Connection
 from simulator.core.environment import Environment
 from simulator.core.parcel import Parcel
 from simulator.core.process import Process
@@ -13,11 +14,13 @@ from simulator.core.node import Node
 class Simulator:
     def __init__(self) -> None:
         np.random.seed(Config.get('random_seed'))
+        Common.setTime(0)
         self._eventHeap = EventHeap()
         self._processMap = {}
         self._taskQueueMap = {}
         self._nodeMap = {}
         self._taskMap = {}
+        self._connectionMap = {}
     
     def run(self):
         eventHeap = self._eventHeap
@@ -56,7 +59,7 @@ class Simulator:
     
     def unregisterTask(self, taskId: int) -> Task:
         return self._taskMap.pop(taskId)
-        
+    
     def getProcess(self, id: int) -> Process:
         return self._processMap[id]
     
@@ -74,6 +77,6 @@ class Simulator:
         
     def sendParcel(self, parcel: Parcel, destNodeId: int) -> bool:
         destNode = self.getNode(destNodeId)
-        return destNode.receiveParcel(parcel)
+        return destNode._receiveParcel(parcel)
     
         

@@ -9,11 +9,20 @@ class TaskEnvironment(Environment):
         self._edgeNodes = edgeNodes
         self._mobileNodes = mobileNodes
     
-    def setup(self, simulator: Simulator) -> None:
+    def initialize(self, simulator: Simulator) -> None:
+        
+        for node in self._edgeNodes + self._mobileNodes:
+            simulator.registerNode(node)
+        
         for edgeNode in self._edgeNodes:
-            edgeNode.setup(simulator)
+            edgeNode.initializeConnection(simulator)
         for mobileNode in self._mobileNodes:
-            mobileNode.setup(simulator)
+            mobileNode.initializeConnection(simulator)
+        
+        for edgeNode in self._edgeNodes:
+            edgeNode.initializeProcesses(simulator)
+        for mobileNode in self._mobileNodes:
+            mobileNode.initializeProcesses(simulator)
     
     def edgeNode(self, id: int) -> EdgeNode:
         return self._edgeNodes[id]

@@ -1,7 +1,10 @@
 {
-    "task_generation_duration": 10000,
+    "task_generation_duration": 100,
     "task_generator_lambda": 0.1,
     "task_generator_prefetch_time": 1000,
     "random_seed": 9578336,
-    "initial_unique_id": 1
+    "initial_unique_id": 1,
+
+    "_comment_debug_level": "debug level -1:No debug, 0: must show only, 1:breif debug, 2: medium debug, 3: extensive debug",
+    "debug_level": 3
 }

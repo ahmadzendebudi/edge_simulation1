@@ -4,8 +4,8 @@ from simulator.core.parcel import Parcel
 
 
 class Node:
-    def __init__(self) -> None:
-        pass
+    def __init__(self, externalId: int) -> None:
+        self._externalId = externalId
     
     def setup(self, id: int) -> None:
         self._id = id
@@ -17,3 +17,6 @@ class Node:
         
     def id(self) -> int:
         return self._id
+        
+    def externalId(self) -> int:
+        return self._externalId

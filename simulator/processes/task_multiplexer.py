@@ -46,7 +46,7 @@ class TaskMultiplexer(Process):
         
     def wake(self) -> None:
         queue = self._plug.fetchMultiplexerQueue(self._id)
-        if queue.qsize != 0:
+        if queue.qsize() != 0:
             self._multiplex(queue.get())
         return super().wake()
     
