@@ -13,7 +13,6 @@ from simulator.core.node import Node
 
 class Simulator:
     def __init__(self) -> None:
-        np.random.seed(Config.get('random_seed'))
         Common.setTime(0)
         self._eventHeap = EventHeap()
         self._processMap = {}

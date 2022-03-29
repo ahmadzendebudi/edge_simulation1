@@ -19,11 +19,13 @@ class TaskRunnerPlug:
         pass
 
 class TaskRunner(Process):
-    def __init__(self, plug: TaskRunnerPlug) -> None:
+    def __init__(self, plug: TaskRunnerPlug, flops: int) -> None:
+        '''flops: floating point operation per second for the host device'''
         super().__init__()
         self._plug = plug
         self._liveTask = None
         self._liveTaskCompletionTime = None
+        self._flops = flops
         
     def wake(self) -> None:
         if (self._liveTask != None and self._liveTaskCompletionTime <= Common.time()):
@@ -38,8 +40,7 @@ class TaskRunner(Process):
         return super().wake()
     
     def _runTask(self, task: Task):
-        #TODO I need to calculate task run duration properly!
         self._liveTask = task
-        self._liveTaskCompletionTime = Common.time() + task.size() * task.workload() * 0.001 #CPU speed
+        self._liveTaskCompletionTime = Common.time() + task.size() * task.workload() / self._flops
         self._plug.wakeTaskRunnerAt(self._liveTaskCompletionTime, self._id)
         

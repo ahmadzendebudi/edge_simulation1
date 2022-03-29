@@ -1,10 +1,29 @@
 {
-    "task_generation_duration": 100,
+    "task_generation_duration": 200,
     "task_generator_lambda": 0.1,
     "task_generator_prefetch_time": 1000,
+    "task_size_kBit": 25,
+    "task_size_sd_kBit": 10,
+    "task_size_min_kBit": 1,
+    "task_kflops_per_bit": 500,
+    "task_kflops_per_bit_sd": 100,
+    "task_kflops_per_bit_min": 100,
     "random_seed": 9578336,
     "initial_unique_id": 1,
 
+    "mobile_transmit_power_watts": 0.04,
+    "edge_transmit_power_watts": 0.1,
+    "mobile_gain_dBi": 3,
+    "edge_gain_dBi": 10,
+    "channel_frequency_GHz": 2.4,
+    "channel_bandwidth_MHz": 20,
+    "gaussain_noise_dBm": -80,
+    "gaussain_noise_sd_dBm": -10,
+    "mobile_cpu_core_tflops": 1,
+    "mobile_cpu_cores": 1,
+    "edge_cpu_core_tflops": 3,
+    "edge_cpu_cores": 4,
+
     "_comment_debug_level": "debug level -1:No debug, 0: must show only, 1:breif debug, 2: medium debug, 3: extensive debug",
-    "debug_level": 3
+    "debug_level": -1
 }

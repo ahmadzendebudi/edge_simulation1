@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from collections import deque
 from typing import Tuple
 from simulator.common import Common
 from simulator.core.node import Node
@@ -25,8 +26,10 @@ class MobileNodePlug:
     
 class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug,
                  TaskRunnerPlug, TaskTransmitterPlug):
-    def __init__(self, externalId: int, plug: MobileNodePlug) -> None:
+    def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int) -> None:#TODO a parameter for cpu cycles per second
         self._plug = plug
+        self._flops = flops
+        self._cores = cores
         super().__init__(externalId)
     
     def edgeConnection(self) -> Connection:
@@ -53,6 +56,7 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
         simulator.registerProcess(self._taskDistributer)
         simulator.registerEvent(Common.time(), self._taskDistributer.id())
         
+        self._taskDistributionTimeQueue = deque()
         self._taskGenerator = TaskGenerator(self)
         simulator.registerProcess(self._taskGenerator)
         
@@ -60,24 +64,31 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
         multiplex_selector = TaskMultiplexerSelectorRandom([self._edgeConnection.destNode()])
         self._taskMultiplexer = TaskMultiplexer(self, multiplex_selector)
         simulator.registerProcess(self._taskMultiplexer)
-        self._multiplexQueue = TaskQueue(self._taskMultiplexer.id())
+        self._multiplexQueue = TaskQueue()
         simulator.registerTaskQueue(self._multiplexQueue)
         
-        self._taskRunner = TaskRunner(self)
-        simulator.registerProcess(self._taskRunner)
-        self._localQueue = TaskQueue(self._taskRunner.id())
+        self._localQueue = TaskQueue()
         simulator.registerTaskQueue(self._localQueue)
+        self._taskRunners = []
+        for _ in range(0, self._cores):
+            taskRunner = TaskRunner(self, self._flops)
+            simulator.registerProcess(taskRunner)
+            self._taskRunners.append(taskRunner)
         
         self._taskTransmitter = TaskTransmitter(self)
         simulator.registerProcess(self._taskTransmitter)
-        self._transmitQueue = TaskQueue(self._taskTransmitter.id())
+        self._transmitQueue = TaskQueue()
         simulator.registerTaskQueue(self._transmitQueue)
     
     def registerTask(self, time: int, processId: int) -> None:
+        self._taskDistributionTimeQueue.append(time)
         self._simulator.registerEvent(time, self._taskGenerator.id())
     
     def wakeTaskDistributerAt(self, time: int, processId: int) -> None:
         self._simulator.registerEvent(time, self._taskDistributer.id())
+    
+    def fetchTaskDistributionTimeQueue(self, processId: int) -> deque:
+        return self._taskDistributionTimeQueue
     
     def taskNodeId(self, processId: int) -> int:
         return self._id
@@ -92,7 +103,8 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
     
     def taskLocalExecution(self, task: Task, processId: int) -> None:
         self._localQueue.put(task)
-        self._simulator.registerEvent(Common.time(), self._taskRunner.id())
+        for taskRunner in self._taskRunners:
+            self._simulator.registerEvent(Common.time(), taskRunner.id())
     
     def taskTransimission(self, task: Task, processId: int, destinationId: int) -> None:
         self._transmitQueue.put(task)
@@ -105,6 +117,7 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
         self._simulator.registerEvent(time, processId)
     
     def taskRunComplete(self, task: Task, processId: int):
+        #TODO
         if Logger.levelCanLog(2):
             Logger.log("local execution completed: " + str(task), 2)
         pass

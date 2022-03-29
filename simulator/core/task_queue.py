@@ -4,8 +4,7 @@ from simulator.core.task import Task
 from collections import deque
 
 class TaskQueue:
-    def __init__(self, readerProcessId: int) -> None:
-        self._readerProcessId = readerProcessId
+    def __init__(self) -> None:
         self._queue = deque()
         
     def setup(self, id: int) -> None:
@@ -13,9 +12,6 @@ class TaskQueue:
         
     def id(self) -> int:
         return self._id
-    
-    def readerProcessId(self):
-        return self._readerProcessId
     
     def put(self, task: Task):
         self._queue.append(task)

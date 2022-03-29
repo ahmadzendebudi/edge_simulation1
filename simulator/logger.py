@@ -1,14 +1,15 @@
 from abc import abstractmethod
 from simulator import Config
+from simulator.common import Common
 
 class LogOutput:
     @abstractmethod
-    def receiveText(self, text: str):
+    def receiveText(self, text: str, time: int):
         pass
 
 class LogOutputConsolePrint(LogOutput):
-    def receiveText(self, text: str):
-        print(text)
+    def receiveText(self, text: str, time: int):
+        print("Time: " + str(time) + ", " + text)
 
 class Logger:
     @classmethod
@@ -26,8 +27,9 @@ class Logger:
             cls.level = Config.get("debug_level")
         
         if (level <= cls.level):
+            time = Common.time()
             for logOutput in cls.logOutputs:
-                logOutput.receiveText(text)
+                logOutput.receiveText(text, time)
     
     @classmethod
     def levelCanLog(cls, level: int):

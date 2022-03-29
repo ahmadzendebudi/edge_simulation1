@@ -23,7 +23,6 @@ class TaskDistributer(Process):
         self._simulationDuration = Config.get("task_generation_duration")
     
     def wake(self) -> None:
-        #TODO generate tasks until Common.time() + prefeetchTime
         while (self._taskGenerationTime < Common.time() + self._prefetchTime and
                self._taskGenerationTime < self._simulationDuration):
             self._taskGenerationTime += np.random.exponential(1/self._lambda)

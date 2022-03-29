@@ -9,6 +9,7 @@ from simulator.core.process import Process
 from simulator.core.simulator import Simulator
 from simulator.core.task import Task
 from simulator.environment.parcel_types import ParcelTypes
+from simulator.logger import Logger
 from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug, TaskMultiplexerSelectorLocal
 from simulator.processes.task_runner import TaskRunner, TaskRunnerPlug
 
@@ -22,8 +23,10 @@ class EdgeNodePlug:
         pass
     
 class EdgeNode(Node, TaskMultiplexerPlug, TaskRunnerPlug):
-    def __init__(self, externalId: int, plug: EdgeNodePlug) -> None:
+    def __init__(self, externalId: int, plug: EdgeNodePlug, flops: int, cores: int) -> None:#TODO in case of multicore, we should have multiple task runners
         self._plug = plug
+        self._flops = flops
+        self._cores = cores
         super().__init__(externalId)
     
     def initializeConnection(self, simulator: Simulator):
@@ -47,13 +50,16 @@ class EdgeNode(Node, TaskMultiplexerPlug, TaskRunnerPlug):
         multiplex_selector = TaskMultiplexerSelectorLocal()
         self._taskMultiplexer = TaskMultiplexer(self, multiplex_selector)
         simulator.registerProcess(self._taskMultiplexer)
-        self._multiplexQueue = TaskQueue(self._taskMultiplexer.id())
+        self._multiplexQueue = TaskQueue()
         simulator.registerTaskQueue(self._multiplexQueue)
         
-        self._taskRunner = TaskRunner(self)
-        simulator.registerProcess(self._taskRunner)
-        self._localQueue = TaskQueue(self._taskRunner.id())
+        self._localQueue = TaskQueue()
         simulator.registerTaskQueue(self._localQueue)
+        self._taskRunners = []
+        for _ in range(0, self._cores):
+            taskRunner = TaskRunner(self, self._flops)
+            simulator.registerProcess(taskRunner)
+            self._taskRunners.append(taskRunner)
         
     
     def _receiveParcel(self, parcel: Parcel) -> bool:
@@ -69,7 +75,8 @@ class EdgeNode(Node, TaskMultiplexerPlug, TaskRunnerPlug):
     
     def taskLocalExecution(self, task: Task, processId: int) -> None:
         self._localQueue.put(task)
-        self._simulator.registerEvent(Common.time(), self._taskRunner.id())
+        for taskRunner in self._taskRunners:
+            self._simulator.registerEvent(Common.time(), taskRunner.id())
     
     def taskTransimission(self, task: Task, processId: int, destinationId: int) -> None:
         #TODO
@@ -83,4 +90,6 @@ class EdgeNode(Node, TaskMultiplexerPlug, TaskRunnerPlug):
     
     def taskRunComplete(self, task: Task, processId: int):
         #TODO
+        if Logger.levelCanLog(2):
+            Logger.log("edge execution completed: " + str(task), 2)
         pass

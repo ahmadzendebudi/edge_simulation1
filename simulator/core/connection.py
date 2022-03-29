@@ -1,14 +1,14 @@
 class Connection:
-    def __init__(self, sourceNode: int, destNode: int, bandwidth: int) -> None:
+    def __init__(self, sourceNode: int, destNode: int, datarate: int) -> None:
         self._sourceNode = sourceNode
         self._destNode = destNode
-        self._bandwidth = bandwidth
+        self._datarate = datarate
         
     def destNode(self) -> int:
         return self._destNode
     
-    def bandwidth(self) -> int:
-        return self._bandwidth
+    def datarate(self) -> int:
+        return self._datarate
     
     def id(self) -> int:
         return Connection.generateId(self._sourceNode, self._destNode)

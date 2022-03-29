@@ -46,5 +46,5 @@ class TaskTransmitter(Process):
         #TODO I need to calculate task transmit duration properly!
         self._liveTask = task
         connection = self._plug.fetchDestinationConnection(self._id)
-        self._liveTaskCompletionTime = Common.time() + task.size() / connection.bandwidth()
+        self._liveTaskCompletionTime = Common.time() + task.size() / connection.datarate()
         self._plug.wakeTaskTransmitterAt(self._liveTaskCompletionTime, self._id)
