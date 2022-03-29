@@ -57,5 +57,6 @@ class TaskMultiplexer(Process):
         if selection == None:
             self._plug.taskLocalExecution(task, self.id())
         else:
+            task.setHopLimit(task.hopLimit() - 1)
             self._plug.taskTransimission(task, self.id(), selection)
         

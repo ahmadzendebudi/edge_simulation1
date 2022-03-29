@@ -5,17 +5,17 @@ from simulator.common import Common
 from simulator.core.node import Node
 from simulator.core.connection import Connection
 from simulator.core.parcel import Parcel
+from simulator.core.parcel_queue import ParcelQueue
 from simulator.core.process import Process
 from simulator.core.simulator import Simulator
 from simulator.core.task_queue import TaskQueue
 from simulator.core.task import Task
-from simulator.environment.parcel_types import ParcelTypes
 from simulator.logger import Logger
 from simulator.processes.task_distributer import TaskDistributer, TaskDistributerPlug
 from simulator.processes.task_generator import TaskGenerator, TaskGeneratorPlug
 from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug, TaskMultiplexerSelectorRandom
 from simulator.processes.task_runner import TaskRunner, TaskRunnerPlug
-from simulator.processes.task_transmitter import TaskTransmitter, TaskTransmitterPlug
+from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTransmitterPlug
 
 class MobileNodePlug:
     @abstractmethod
@@ -25,11 +25,12 @@ class MobileNodePlug:
         pass
     
 class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug,
-                 TaskRunnerPlug, TaskTransmitterPlug):
+                 TaskRunnerPlug, ParcelTransmitterPlug):
     def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int) -> None:#TODO a parameter for cpu cycles per second
         self._plug = plug
         self._flops = flops
         self._cores = cores
+        self._edgeState = [0, 0]
         super().__init__(externalId)
     
     def edgeConnection(self) -> Connection:
@@ -62,6 +63,7 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
         
         #TODO random selector should be replaced with DRL selector
         multiplex_selector = TaskMultiplexerSelectorRandom([self._edgeConnection.destNode()])
+        
         self._taskMultiplexer = TaskMultiplexer(self, multiplex_selector)
         simulator.registerProcess(self._taskMultiplexer)
         self._multiplexQueue = TaskQueue()
@@ -75,10 +77,10 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
             simulator.registerProcess(taskRunner)
             self._taskRunners.append(taskRunner)
         
-        self._taskTransmitter = TaskTransmitter(self)
-        simulator.registerProcess(self._taskTransmitter)
-        self._transmitQueue = TaskQueue()
-        simulator.registerTaskQueue(self._transmitQueue)
+        self._transmitQueue = ParcelQueue()
+        simulator.registerParcelQueue(self._transmitQueue)
+        self._transmitter = ParcelTransmitter(self._simulator, self._transmitQueue, self)
+        simulator.registerProcess(self._transmitter)
     
     def registerTask(self, time: int, processId: int) -> None:
         self._taskDistributionTimeQueue.append(time)
@@ -107,8 +109,11 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
             self._simulator.registerEvent(Common.time(), taskRunner.id())
     
     def taskTransimission(self, task: Task, processId: int, destinationId: int) -> None:
-        self._transmitQueue.put(task)
-        self._simulator.registerEvent(Common.time(), self._taskTransmitter.id())
+        if self._edgeConnection.destNode() != destinationId:
+            raise ValueError("destination ids do not match, something most have gone wrong")
+        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id)
+        self._transmitter.transmitQueue().put(parcel)
+        self._simulator.registerEvent(Common.time(), self._transmitter.id())
     
     def fetchTaskRunnerQueue(self, processId: int) -> TaskQueue:
         return self._localQueue
@@ -122,22 +127,27 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
             Logger.log("local execution completed: " + str(task), 2)
         pass
     
-    def fetchTaskTransmitterQueue(self, processId: int) -> TaskQueue:
-        return self._transmitQueue
-    
     def fetchDestinationConnection(self, processId: int) -> Connection:
         return self._edgeConnection
     
-    def taskTransmissionComplete(self, task: Task, processId: int) -> int:
-        parcel = Parcel(ParcelTypes.PARCEL_TYPE_TASK, self.id())
-        parcel.task = task
-        destNodeId = self._edgeConnection.destNode()
-        self._simulator.sendParcel(parcel, destNodeId)
+    def parcelTransmissionComplete(self, parcel: Parcel, processId: int) -> int:
+        pass #Nothing to do here, I can add a log if needed
     
-    def wakeTaskTransmitterAt(self, time: int, processId: int) -> None:
-        self._simulator.registerEvent(time, self._taskTransmitter.id())
-        
+    
+    def _currentWorkload(self):
+        workload = TaskRunner.remainingWorkloadTaskQueue(self._localQueue)
+        for taskRunner in self._taskRunners:
+            workload += taskRunner.remainingWorkloadForCurrentTask()
+        return workload
+    
     def _receiveParcel(self, parcel: Parcel) -> bool:
-        raise RuntimeError("mobile node does not recieve parcels")
+        if (parcel.type == Common.PARCEL_TYPE_NODE_STATE):
+            content = parcel.content
+            if (len(content) != 3):
+                raise ValueError("State update content: " + str(content) + " not supported by mobile node")
+            if (content[0] == self._edgeConnection.destNode):
+                self._edgeState = content[1:]
+        else:
+            raise ValueError("Parcel type: " + str(parcel.type) + " not supported by mobile node")
     
     

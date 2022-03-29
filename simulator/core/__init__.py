@@ -2,6 +2,7 @@ from simulator.core.environment import Environment
 from simulator.core.event_heap import EventHeap
 from simulator.core.process import Process
 from simulator.core.task_queue import TaskQueue
+from simulator.core.parcel_queue import ParcelQueue
 from simulator.core.simulator import Simulator
 from simulator.core.task import Task
 from simulator.core.node import Node

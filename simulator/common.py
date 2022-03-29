@@ -1,6 +1,9 @@
 import simulator
 
 class Common:
+    PARCEL_TYPE_TASK = "parcelTypeTask"
+    PARCEL_TYPE_NODE_STATE = "parcelTypeNodeState"
+    
     @classmethod
     def time(cls) -> float:
         if not hasattr(cls, "_time"):

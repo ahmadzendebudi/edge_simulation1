@@ -1,5 +1,6 @@
 {
     "task_generation_duration": 200,
+    "node_state_transmission_interval": 5,
     "task_generator_prefetch_time": 50,
     "task_generator_lambda": 0.1,
     "task_size_kBit": 25,
@@ -10,6 +11,7 @@
     "task_kflops_per_bit_min": 100,
     "random_seed": 9578336,
     "initial_unique_id": 1,
+    "state_parcel_size_per_variable_in_bits": 64,
 
     "mobile_transmit_power_watts": 0.04,
     "edge_transmit_power_watts": 0.1,

@@ -1,9 +1,8 @@
 
-from xmlrpc.client import boolean
-from simulator.core.task import Task
+from simulator.core.parcel import Parcel
 from collections import deque
 
-class TaskQueue:
+class ParcelQueue:
     def __init__(self) -> None:
         self._queue = deque()
         
@@ -13,17 +12,14 @@ class TaskQueue:
     def id(self) -> int:
         return self._id
     
-    def put(self, task: Task):
-        self._queue.append(task)
+    def put(self, Parcel: Parcel):
+        self._queue.append(Parcel)
         
     def qsize(self) -> int:
         return len(self._queue)
     
-    def get(self) -> Task:
+    def get(self) -> Parcel:
         return self._queue.popleft()
-    
-    def deque(self) -> deque:
-        return self._queue
 
     
     

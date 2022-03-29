@@ -6,6 +6,7 @@ from simulator import Common
 from simulator.core.connection import Connection
 from simulator.core.environment import Environment
 from simulator.core.parcel import Parcel
+from simulator.core.parcel_queue import ParcelQueue
 from simulator.core.process import Process
 from simulator.core.task import Task
 from simulator.core.task_queue import TaskQueue
@@ -20,6 +21,7 @@ class Simulator:
         self._nodeMap = {}
         self._taskMap = {}
         self._connectionMap = {}
+        self._parcelQueueMap = {}
     
     def run(self):
         eventHeap = self._eventHeap
@@ -48,12 +50,19 @@ class Simulator:
         id = Common.generateUniqueId()
         node.setup(id)
         self._nodeMap[id] = node
+        self._processMap[id] = node
         return id
     
     def registerTask(self, task: Task):
         id = Common.generateUniqueId()
         task.setup(id)
         self._taskMap[id] = task
+        return id
+    
+    def registerParcelQueue(self, parcelQueue: ParcelQueue):
+        id = Common.generateUniqueId()
+        parcelQueue.setup(id)
+        self._parcelQueueMap[id] = parcelQueue
         return id
     
     def unregisterTask(self, taskId: int) -> Task:
@@ -73,9 +82,13 @@ class Simulator:
     
     def registerEvent(self, time: int, processId: int) -> None:
         self._eventHeap.addEvent(time, processId)
-        
-    def sendParcel(self, parcel: Parcel, destNodeId: int) -> bool:
+    
+    def getParcelQueue(self, id: int) -> TaskQueue:
+        return self._parcelQueueMap[id]
+    
+    def sendParcel(self, parcel: Parcel, destNodeId: int) -> None:
         destNode = self.getNode(destNodeId)
-        return destNode._receiveParcel(parcel)
+        destNode.parcelInbox(parcel)
+        self.registerEvent(Common.time(), destNodeId)
     
         
