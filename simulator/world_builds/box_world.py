@@ -102,20 +102,18 @@ class BoxWorld(EdgeNodePlug, MobileNodePlug):
         edgeConnections = []
         mobileConnections = []
         
-        #TODO calculating the data rate(at some point it should depend on distance)
-        #powerTransmitted = 
-        #receivedPower = 
+        senderEdgeDevice = self._edgeDevices[nodeExternalId]
+        for edgeDeviceId in senderEdgeDevice["connectionsEdgeId"]:
+            receiverEdgeDevice = self._edgeDevices[edgeDeviceId]
+            receiverEdgeNodeId = receiverEdgeDevice["node"].id()
+            datarate = self._sampleEdgeToEdgeDataRate(senderEdgeDevice, receiverEdgeDevice, 4)#TODO modulation should be set properly
+            edgeConnections.append(Connection(nodeId, receiverEdgeNodeId, datarate))
         
-        for edgeDeviceId in self._edgeDevices[nodeExternalId]["connectionsEdgeId"]:
-            edgeDevice = self._edgeDevices[edgeDeviceId]
-            edgeNodeId = edgeDevice["node"].id()
-            edgeConnections.append(Connection(nodeId, edgeNodeId, 10000))
-        
-        for mobileDeviceId in self._edgeDevices[nodeExternalId]["connectionsMobileId"]:
-            mobileDevice = self._mobileDevices[mobileDeviceId]
-            mobileNodeId = mobileDevice["node"].id()
-            #TODO bandwidth should be decided properly
-            mobileConnections.append(Connection(nodeId, mobileNodeId, 1000))
+        for mobileDeviceId in senderEdgeDevice["connectionsMobileId"]:
+            receiverMobileDevice = self._mobileDevices[mobileDeviceId]
+            receiverMobileNodeId = receiverMobileDevice["node"].id()
+            datarate = self._sampleEdgeToMobileDataRate(senderEdgeDevice, receiverMobileDevice, 100)#TODO modulation should be set properly
+            mobileConnections.append(Connection(nodeId, receiverMobileNodeId, datarate))
             
         return (edgeConnections, mobileConnections, None)
         
@@ -124,25 +122,43 @@ class BoxWorld(EdgeNodePlug, MobileNodePlug):
         mobileDevice = self._mobileDevices[nodeExternalId]
         edgeDeviceId = mobileDevice["connectionEdgeId"]
         edgeDevice = self._edgeDevices[edgeDeviceId]
-        datarate = self.sampleMobileToEdgeDataRate(mobileDevice, edgeDevice, 100)#TODO modulation should be set properly
+        datarate = self._sampleMobileToEdgeDataRate(mobileDevice, edgeDevice, 100)#TODO modulation should be set properly
         return (Connection(nodeId, edgeDevice["node"].id(), datarate), None)
     
-    def sampleMobileToEdgeDataRate(self, mobileDevice, edgeDevice, modulationChannels) -> int: #TODO modulation should also be taken into account 
-        transmitGain = 10 ** (self._mobile_gain_dBi / 10)
-        receiveGain = 10 ** (self._edge_gain_dBi / 10)
+    def _sampleEdgeToEdgeDataRate(self, transmtterDevice, receiverDevice, modulationChannels) -> int: #TODO modulation should also be taken into account 
+        return self._sampleDeviceToDeviceDataRate(transmtterDevice, self._edge_gain_dBi, self._edge_transmit_power_watts,
+                                             receiverDevice, self._edge_gain_dBi,
+                                             self._channel_frequency_GHz, self._channel_bandwidth_MHz, modulationChannels)
+    
+    def _sampleMobileToEdgeDataRate(self, mobileDevice, edgeDevice, modulationChannels) -> int: #TODO modulation should also be taken into account 
+        return self._sampleDeviceToDeviceDataRate(mobileDevice, self._mobile_gain_dBi, self._mobile_transmit_power_watts,
+                                             edgeDevice, self._edge_gain_dBi,
+                                             self._channel_frequency_GHz, self._channel_bandwidth_MHz, modulationChannels)
+    
+    def _sampleEdgeToMobileDataRate(self, edgeDevice, mobileDevice, modulationChannels) -> int: #TODO modulation should also be taken into account 
+        return self._sampleDeviceToDeviceDataRate(edgeDevice, self._edge_gain_dBi, self._edge_transmit_power_watts,
+                                             mobileDevice, self._mobile_gain_dBi,
+                                             self._channel_frequency_GHz, self._channel_bandwidth_MHz, modulationChannels)
+        
+    def _sampleDeviceToDeviceDataRate(self, transmitterDevice, transmitGain_dBi, transmitPower,
+                                      receiverDevice, receiveGain_dBi,
+                                      channelFrequency_GHz, channelBandwidth_MHz, modulationChannels):
+        transmitGain = 10 ** (transmitGain_dBi / 10)
+        receiveGain = 10 ** (receiveGain_dBi / 10)
+        channelFrequency = channelFrequency_GHz * 10 ** 9
+        channelBandwidth = channelBandwidth_MHz * 10 ** 6
+        
         #299792458 is the speed of light
-        wavelength = 299792458/(self._channel_frequency_GHz * 10 ** 9)
-        distance = self.distance(mobileDevice["location"], edgeDevice["location"])
+        wavelength = 299792458/channelFrequency
+        distance = self.distance(transmitterDevice["location"], receiverDevice["location"])
         
-        transmitPower = self._mobile_transmit_power_watts
         receivePower = transmitPower * transmitGain * receiveGain * (wavelength / (4 * np.pi * distance)) ** 2
+        
         receiveNoisePower = 10 ** (self._gaussain_noise_dBm / 10)
-        bandwidth = self._channel_bandwidth_MHz * 10 ** 6
         
-        datarate = bandwidth * np.log2(1 + receivePower / receiveNoisePower)
+        datarate = channelBandwidth * np.log2(1 + receivePower / receiveNoisePower)
         datarate = int(datarate / modulationChannels)
-        return datarate
-        
+        return datarate  
     
     def distance(self, location1: Sequence[int], location2: Sequence[int]) -> float:
         return np.sqrt(np.power(location1[0] - location2[0], 2) + np.power(location1[1] - location2[1], 2))

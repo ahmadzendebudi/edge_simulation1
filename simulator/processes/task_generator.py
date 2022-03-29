@@ -44,5 +44,5 @@ class TaskGenerator(Process):
             taskSize = int(max([self._task_size_min_kBit * 1000, taskSize]))
             flops = np.random.normal(self._task_kflops_per_bit, self._task_kflops_per_bit_sd) * 1000
             flops = int(max([self._task_kflops_per_bit_min * 1000, flops]))
-            newTask = Task(size=taskSize, workload=flops, nodeId=self._plug.taskNodeId(self._id))
+            newTask = Task(taskSize, flops, self._plug.taskNodeId(self._id), Common.time())
             self._plug.taskArrival(newTask, self._id)

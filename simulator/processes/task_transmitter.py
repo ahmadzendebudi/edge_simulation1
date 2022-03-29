@@ -44,6 +44,7 @@ class TaskTransmitter(Process):
     
     def _transmitTask(self, task: Task):
         #TODO I need to calculate task transmit duration properly!
+        task.setHopLimit(task.hopLimit() - 1)
         self._liveTask = task
         connection = self._plug.fetchDestinationConnection(self._id)
         self._liveTaskCompletionTime = Common.time() + task.size() / connection.datarate()

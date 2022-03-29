@@ -51,7 +51,9 @@ class TaskMultiplexer(Process):
         return super().wake()
     
     def _multiplex(self, task: Task) -> None:
-        selection = self._selector.select(task)
+        selection = None
+        if task.hopLimit() > 0:
+            selection = self._selector.select(task)
         if selection == None:
             self._plug.taskLocalExecution(task, self.id())
         else:

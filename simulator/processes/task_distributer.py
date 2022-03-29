@@ -29,5 +29,5 @@ class TaskDistributer(Process):
             if (self._taskGenerationTime < self._simulationDuration):
                 self._plug.registerTask(self._taskGenerationTime, self._id)
         if (self._taskGenerationTime < self._simulationDuration):
-            self._plug.wakeTaskDistributerAt(self._taskGenerationTime)
+            self._plug.wakeTaskDistributerAt(self._taskGenerationTime, self._id)
         super().wake()

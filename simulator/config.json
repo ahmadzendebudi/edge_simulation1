@@ -1,7 +1,7 @@
 {
     "task_generation_duration": 200,
+    "task_generator_prefetch_time": 50,
     "task_generator_lambda": 0.1,
-    "task_generator_prefetch_time": 1000,
     "task_size_kBit": 25,
     "task_size_sd_kBit": 10,
     "task_size_min_kBit": 1,
@@ -25,5 +25,5 @@
     "edge_cpu_cores": 4,
 
     "_comment_debug_level": "debug level -1:No debug, 0: must show only, 1:breif debug, 2: medium debug, 3: extensive debug",
-    "debug_level": -1
+    "debug_level": 3
 }

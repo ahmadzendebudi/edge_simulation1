@@ -2,13 +2,13 @@ import simulator
 
 class Common:
     @classmethod
-    def time(cls) -> int:
+    def time(cls) -> float:
         if not hasattr(cls, "_time"):
             raise RuntimeError("time is still not set by the simulator, time should not be referenced before the simulator is created")
         return cls._time
     
     @classmethod
-    def setTime(cls, time: int):
+    def setTime(cls, time: float):
         cls._time = time
         
     @classmethod
