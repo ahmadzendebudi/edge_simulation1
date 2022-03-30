@@ -11,6 +11,7 @@ from simulator.core.parcel_queue import ParcelQueue
 from simulator.core.process import Process
 from simulator.core.simulator import Simulator
 from simulator.core.task import Task
+from simulator.environment.task_node import TaskNode
 from simulator.logger import Logger
 from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug, TaskMultiplexerSelectorLocal, TaskMultiplexerSelectorRandom
 from simulator.processes.task_runner import TaskRunner, TaskRunnerPlug
@@ -25,12 +26,10 @@ class EdgeNodePlug:
         of "None" means the will not be another call to this function'''
         pass
     
-class EdgeNode(Node, TaskMultiplexerPlug, TaskRunnerPlug, ParcelTransmitterPlug):
+class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def __init__(self, externalId: int, plug: EdgeNodePlug, flops: int, cores: int) -> None:#TODO in case of multicore, we should have multiple task runners
         self._plug = plug
-        self._flops = flops
-        self._cores = cores
-        super().__init__(externalId)
+        super().__init__(externalId, flops, cores)
     
     def initializeConnection(self, simulator: Simulator):
         self._simulator = simulator
@@ -51,7 +50,7 @@ class EdgeNode(Node, TaskMultiplexerPlug, TaskRunnerPlug, ParcelTransmitterPlug)
             self._simulator.registerEvent(Common.time() + duration, self._connectionProcess.id())
         
     def initializeProcesses(self, simulator: Simulator):
-        self._simulator = simulator
+        super().initializeProcesses(simulator)
         
         #TODO -->local selector should be replaced with DRL selector
         edgeDestNodeIds = []
@@ -63,15 +62,6 @@ class EdgeNode(Node, TaskMultiplexerPlug, TaskRunnerPlug, ParcelTransmitterPlug)
         simulator.registerProcess(self._taskMultiplexer)
         self._multiplexQueue = TaskQueue()
         simulator.registerTaskQueue(self._multiplexQueue)
-        
-        #local task runner processes:
-        self._localQueue = TaskQueue()
-        simulator.registerTaskQueue(self._localQueue)
-        self._taskRunners = []
-        for _ in range(0, self._cores):
-            taskRunner = TaskRunner(self, self._flops)
-            simulator.registerProcess(taskRunner)
-            self._taskRunners.append(taskRunner)
         
         #transmitter processes:
         self._transmitterMap = {}
@@ -89,6 +79,7 @@ class EdgeNode(Node, TaskMultiplexerPlug, TaskRunnerPlug, ParcelTransmitterPlug)
         
         self._lastTransmitEmptyQueues = False
         '''indicates if the local and multiplex queues while sending the last states were empty'''
+        
         self._stateTransmissionUpdate()
             
     def wake(self) -> None:
@@ -99,7 +90,7 @@ class EdgeNode(Node, TaskMultiplexerPlug, TaskRunnerPlug, ParcelTransmitterPlug)
         if (not hasattr(self, '_lastStateTransmission') or
             Common.time() - self._lastStateTransmission >= Config.get("node_state_transmission_interval")):
             taskGeneration = Common.time() < Config.get("task_generation_duration")
-            emptyQueues = self._currentWorkload() == 0 and self._multiplexQueue.qsize() == 0
+            emptyQueues = self.currentWorkload() == 0 and self._multiplexQueue.qsize() == 0
             if taskGeneration or not emptyQueues or not self._lastTransmitEmptyQueues:
                 if emptyQueues:
                     self._lastTransmitEmptyQueues = True
@@ -111,7 +102,7 @@ class EdgeNode(Node, TaskMultiplexerPlug, TaskRunnerPlug, ParcelTransmitterPlug)
         if Logger.levelCanLog(3):
             Logger.log("state transmission edgeId:" + str(self.id()), 3)
             
-        content = [self.id, self._currentWorkload(), self._localQueue.qsize()]
+        content = [self.id(), self.currentWorkload(), self._localQueue.qsize()]
         size = Config.get("state_parcel_size_per_variable_in_bits") * len(content)
         parcel = Parcel(Common.PARCEL_TYPE_NODE_STATE, size, content, self.id())
         
@@ -120,12 +111,6 @@ class EdgeNode(Node, TaskMultiplexerPlug, TaskRunnerPlug, ParcelTransmitterPlug)
             transmitter.transmitQueue().put(parcel)
             self._simulator.registerEvent(Common.time(), transmitter.id())
         
-    def _currentWorkload(self):
-        workload = TaskRunner.remainingWorkloadTaskQueue(self._localQueue)
-        for taskRunner in self._taskRunners:
-            workload += taskRunner.remainingWorkloadForCurrentTask()
-        return workload
-    
     def _receiveParcel(self, parcel: Parcel) -> bool:
         if parcel.type == Common.PARCEL_TYPE_TASK:
             task = parcel.content
@@ -133,6 +118,9 @@ class EdgeNode(Node, TaskMultiplexerPlug, TaskRunnerPlug, ParcelTransmitterPlug)
             self._simulator.registerEvent(Common.time(), self._taskMultiplexer.id())
         else:
             raise RuntimeError("Parcel type not supported for edge node")
+    
+    def fetchState(self, processId: int) -> Sequence[float]:
+        return []#TODO
     
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:
         return self._multiplexQueue
@@ -148,12 +136,6 @@ class EdgeNode(Node, TaskMultiplexerPlug, TaskRunnerPlug, ParcelTransmitterPlug)
         transmitter.transmitQueue().put(parcel)
         self._simulator.registerEvent(Common.time(), transmitter.id())
     
-    def fetchTaskRunnerQueue(self, processId: int) -> TaskQueue:
-        return self._localQueue
-    
-    def wakeTaskRunnerAt(self, time: int, processId: int):
-        self._simulator.registerEvent(time, processId)
-    
     def taskRunComplete(self, task: Task, processId: int):
         #TODO
         if Logger.levelCanLog(2):
@@ -166,3 +148,8 @@ class EdgeNode(Node, TaskMultiplexerPlug, TaskRunnerPlug, ParcelTransmitterPlug)
     
     def parcelTransmissionComplete(self, task: Task, processId: int) -> int:
         pass #Nothing to do here, I can add a log if needed
+    
+    
+    
+    def wakeTaskRunnerAt(self, time: int, processId: int):
+        return super().wakeTaskRunnerAt(time, processId)

@@ -2,14 +2,14 @@
     "task_generation_duration": 200,
     "node_state_transmission_interval": 5,
     "task_generator_prefetch_time": 50,
-    "task_generator_lambda": 0.1,
-    "task_size_kBit": 25,
-    "task_size_sd_kBit": 10,
-    "task_size_min_kBit": 1,
-    "task_kflops_per_bit": 500,
-    "task_kflops_per_bit_sd": 100,
-    "task_kflops_per_bit_min": 100,
-    "random_seed": 9578336,
+    "task_generator_lambda": 0.5,
+    "task_size_kBit": 2500,
+    "task_size_sd_kBit": 1000,
+    "task_size_min_kBit": 1000,
+    "task_kflops_per_bit": 750,
+    "task_kflops_per_bit_sd": 150,
+    "task_kflops_per_bit_min": 150,
+    "random_seed": 9578337,
     "initial_unique_id": 1,
     "state_parcel_size_per_variable_in_bits": 64,
 
@@ -27,5 +27,5 @@
     "edge_cpu_cores": 4,
 
     "_comment_debug_level": "debug level -1:No debug, 0: must show only, 1:breif debug, 2: medium debug, 3: extensive debug",
-    "debug_level": 3
+    "debug_level": 2
 }

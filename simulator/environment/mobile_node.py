@@ -1,7 +1,8 @@
 from abc import abstractmethod
 from collections import deque
-from typing import Tuple
+from typing import Sequence, Tuple
 from simulator.common import Common
+from simulator.config import Config
 from simulator.core.node import Node
 from simulator.core.connection import Connection
 from simulator.core.parcel import Parcel
@@ -10,10 +11,11 @@ from simulator.core.process import Process
 from simulator.core.simulator import Simulator
 from simulator.core.task_queue import TaskQueue
 from simulator.core.task import Task
+from simulator.environment.task_node import TaskNode
 from simulator.logger import Logger
 from simulator.processes.task_distributer import TaskDistributer, TaskDistributerPlug
 from simulator.processes.task_generator import TaskGenerator, TaskGeneratorPlug
-from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug, TaskMultiplexerSelectorRandom
+from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug, TaskMultiplexerSelectorLocal, TaskMultiplexerSelectorRandom
 from simulator.processes.task_runner import TaskRunner, TaskRunnerPlug
 from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTransmitterPlug
 
@@ -24,14 +26,11 @@ class MobileNodePlug:
         this function is called again'''
         pass
     
-class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug,
-                 TaskRunnerPlug, ParcelTransmitterPlug):
+class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int) -> None:#TODO a parameter for cpu cycles per second
         self._plug = plug
-        self._flops = flops
-        self._cores = cores
         self._edgeState = [0, 0]
-        super().__init__(externalId)
+        super().__init__(externalId, flops, cores)
     
     def edgeConnection(self) -> Connection:
         self._edgeConnection
@@ -51,7 +50,7 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
             self._simulator.registerEvent(Common.time() + duration, self._connectionProcess.id())
         
     def initializeProcesses(self, simulator: Simulator):
-        self._simulator = simulator
+        super().initializeProcesses(simulator)
         
         self._taskDistributer = TaskDistributer(self)
         simulator.registerProcess(self._taskDistributer)
@@ -63,24 +62,18 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
         
         #TODO random selector should be replaced with DRL selector
         multiplex_selector = TaskMultiplexerSelectorRandom([self._edgeConnection.destNode()])
+        #multiplex_selector = TaskMultiplexerSelectorLocal()
         
         self._taskMultiplexer = TaskMultiplexer(self, multiplex_selector)
         simulator.registerProcess(self._taskMultiplexer)
         self._multiplexQueue = TaskQueue()
         simulator.registerTaskQueue(self._multiplexQueue)
         
-        self._localQueue = TaskQueue()
-        simulator.registerTaskQueue(self._localQueue)
-        self._taskRunners = []
-        for _ in range(0, self._cores):
-            taskRunner = TaskRunner(self, self._flops)
-            simulator.registerProcess(taskRunner)
-            self._taskRunners.append(taskRunner)
-        
         self._transmitQueue = ParcelQueue()
         simulator.registerParcelQueue(self._transmitQueue)
         self._transmitter = ParcelTransmitter(self._simulator, self._transmitQueue, self)
         simulator.registerProcess(self._transmitter)
+        
     
     def registerTask(self, time: int, processId: int) -> None:
         self._taskDistributionTimeQueue.append(time)
@@ -100,6 +93,11 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
         self._multiplexQueue.put(task)
         self._simulator.registerEvent(Common.time(), self._taskMultiplexer.id())
     
+    def fetchState(self, processId: int) -> Sequence[float]:
+        normalTaskWorkload = Config.get("task_size_kBit") * Config.get("task_kflops_per_bit") * 10 ** 6
+        return [self._edgeConnection.datarate(), self.currentWorkload() / normalTaskWorkload,
+                self._localQueue.qsize(), self._edgeState[0]/normalTaskWorkload, self._edgeState[1]]
+    
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:
         return self._multiplexQueue
     
@@ -115,12 +113,6 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
         self._transmitter.transmitQueue().put(parcel)
         self._simulator.registerEvent(Common.time(), self._transmitter.id())
     
-    def fetchTaskRunnerQueue(self, processId: int) -> TaskQueue:
-        return self._localQueue
-    
-    def wakeTaskRunnerAt(self, time: int, processId: int):
-        self._simulator.registerEvent(time, processId)
-    
     def taskRunComplete(self, task: Task, processId: int):
         #TODO
         if Logger.levelCanLog(2):
@@ -133,20 +125,18 @@ class MobileNode(Node, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPl
     def parcelTransmissionComplete(self, parcel: Parcel, processId: int) -> int:
         pass #Nothing to do here, I can add a log if needed
     
-    
-    def _currentWorkload(self):
-        workload = TaskRunner.remainingWorkloadTaskQueue(self._localQueue)
-        for taskRunner in self._taskRunners:
-            workload += taskRunner.remainingWorkloadForCurrentTask()
-        return workload
-    
     def _receiveParcel(self, parcel: Parcel) -> bool:
         if (parcel.type == Common.PARCEL_TYPE_NODE_STATE):
             content = parcel.content
             if (len(content) != 3):
                 raise ValueError("State update content: " + str(content) + " not supported by mobile node")
-            if (content[0] == self._edgeConnection.destNode):
+            
+            if (content[0] == self._edgeConnection.destNode()):
                 self._edgeState = content[1:]
+                if Logger.levelCanLog(3):
+                    Logger.log("mobile id: " + str(self.id()) + " state update: " + str(self.fetchState(None)), 3)
+            else:
+                Logger.log("mobile node received a state update parcel from an edge which it is not connected to", 1)
         else:
             raise ValueError("Parcel type: " + str(parcel.type) + " not supported by mobile node")
     

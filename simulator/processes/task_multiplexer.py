@@ -8,6 +8,10 @@ import numpy as np
 
 class TaskMultiplexerPlug:
     @abstractmethod
+    def fetchState(self, processId: int) -> Sequence[float]:
+        pass
+    
+    @abstractmethod
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:
         pass
     
@@ -21,7 +25,7 @@ class TaskMultiplexerPlug:
     
 class TaskMultiplexerSelector:    
     @abstractmethod
-    def select(self, task: Task) -> int:
+    def select(self, task: Task, state: Sequence[float]) -> int:
         '''it should return None for local execution, otherwise the id of the destination node'''
         pass
 
@@ -29,11 +33,11 @@ class TaskMultiplexerSelectorRandom(TaskMultiplexerSelector):
     def __init__(self, destIds: Sequence[int]) -> None:
         self._destIds = destIds + [None]
             
-    def select(self, task: Task) -> int:
+    def select(self, task: Task, state: Sequence[float]) -> int:
         return np.random.choice(self._destIds)
     
 class TaskMultiplexerSelectorLocal(TaskMultiplexerSelector):
-    def select(self, task: Task) -> int:
+    def select(self, task: Task, state: Sequence[float]) -> int:
         return None
             
    
@@ -53,7 +57,7 @@ class TaskMultiplexer(Process):
     def _multiplex(self, task: Task) -> None:
         selection = None
         if task.hopLimit() > 0:
-            selection = self._selector.select(task)
+            selection = self._selector.select(task, self._plug.fetchState(self.id()))
         if selection == None:
             self._plug.taskLocalExecution(task, self.id())
         else:
