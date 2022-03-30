@@ -12,6 +12,7 @@
     "random_seed": 9578337,
     "initial_unique_id": 1,
     "state_parcel_size_per_variable_in_bits": 64,
+    "task_result_parcel_size_in_bits": 1024,
 
     "mobile_transmit_power_watts": 0.04,
     "edge_transmit_power_watts": 0.1,

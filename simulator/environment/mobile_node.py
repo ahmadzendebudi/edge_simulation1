@@ -114,11 +114,11 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         self._simulator.registerEvent(Common.time(), self._transmitter.id())
     
     def taskRunComplete(self, task: Task, processId: int):
-        #TODO
-        if Logger.levelCanLog(2):
-            Logger.log("local execution completed: " + str(task), 2)
-        pass
+        self._taskCompleted(task)
     
+    def _taskCompleted(self, task: Task) -> None:
+        if Logger.levelCanLog(2):
+            Logger.log("Run Complete: " + str(task), 2)
     def fetchDestinationConnection(self, processId: int) -> Connection:
         return self._edgeConnection
     
@@ -137,6 +137,12 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
                     Logger.log("mobile id: " + str(self.id()) + " state update: " + str(self.fetchState(None)), 3)
             else:
                 Logger.log("mobile node received a state update parcel from an edge which it is not connected to", 1)
+        elif (parcel.type == Common.PARCEL_TYPE_TASK_RESULT):
+            task = parcel.content
+            if (task.nodeId() != self.id()):
+                raise ValueError("Mobile node (id: " + str(self.id()) +
+                                 ") received task result belonging to another mobile node with id:" + str(task.nodeId()))
+            self._taskCompleted(task)
         else:
             raise ValueError("Parcel type: " + str(parcel.type) + " not supported by mobile node")
     

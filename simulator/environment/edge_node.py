@@ -63,6 +63,8 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         self._multiplexQueue = TaskQueue()
         simulator.registerTaskQueue(self._multiplexQueue)
         
+        self._taskIdToSenderIdMap = {}
+        
         #transmitter processes:
         self._transmitterMap = {}
         self._transmitterIdToDestNodeIdMap = {}
@@ -116,6 +118,10 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
             task = parcel.content
             self._multiplexQueue.put(task)
             self._simulator.registerEvent(Common.time(), self._taskMultiplexer.id())
+            self._taskIdToSenderIdMap[task.id()] = parcel.senderNodeId
+        elif parcel.type == Common.PARCEL_TYPE_TASK_RESULT:
+            task = parcel.content
+            self._sendTaskResult(task)
         else:
             raise RuntimeError("Parcel type not supported for edge node")
     
@@ -137,11 +143,14 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         self._simulator.registerEvent(Common.time(), transmitter.id())
     
     def taskRunComplete(self, task: Task, processId: int):
-        #TODO
-        if Logger.levelCanLog(2):
-            Logger.log("edge execution completed: " + str(task), 2)
-        pass
+        self._sendTaskResult(task)
     
+    def _sendTaskResult(self, task: Task):
+        taskSenderNodeId = self._taskIdToSenderIdMap.pop(task.id())
+        size = Config.get("task_result_parcel_size_in_bits")
+        parcel = Parcel(Common.PARCEL_TYPE_TASK_RESULT, size, task, self.id())
+        self._simulator.sendParcel(parcel, taskSenderNodeId)
+        
     def fetchDestinationConnection(self, processId: int) -> Connection:
         destNodeId = self._transmitterIdToDestNodeIdMap[processId]
         return self._nodeConnectionMap[destNodeId]

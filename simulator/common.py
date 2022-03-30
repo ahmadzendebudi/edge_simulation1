@@ -2,6 +2,7 @@ import simulator
 
 class Common:
     PARCEL_TYPE_TASK = "parcelTypeTask"
+    PARCEL_TYPE_TASK_RESULT = "parcelTypeTaskResult"
     PARCEL_TYPE_NODE_STATE = "parcelTypeNodeState"
     
     @classmethod
