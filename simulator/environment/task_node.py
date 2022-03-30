@@ -11,16 +11,34 @@ from simulator.core.parcel_queue import ParcelQueue
 from simulator.core.process import Process
 from simulator.core.simulator import Simulator
 from simulator.core.task import Task
+from simulator.environment.transition_recorder import TransitionRecorder
 from simulator.logger import Logger
 from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug, TaskMultiplexerSelectorLocal, TaskMultiplexerSelectorRandom
 from simulator.processes.task_runner import TaskRunner, TaskRunnerPlug
 from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTransmitterPlug
 
 class TaskNode(Node, TaskRunnerPlug):
-    def __init__(self, externalId: int, flops: int, cores: int) -> None:
+    def __init__(self, externalId: int, flops: int, cores: int, 
+                 transitionRecorder: TransitionRecorder = None) -> None:
         super().__init__(externalId)
         self._flops = flops
         self._cores = cores
+        self._transitionRecorder = transitionRecorder
+    
+    def setTransitionRecorder(self, transitionRecorder: TransitionRecorder):
+        self._transitionRecorder = transitionRecorder
+    
+    def currentWorkload(self):
+        workload = TaskRunner.remainingWorkloadTaskQueue(self._localQueue)
+        for taskRunner in self._taskRunners:
+            workload += taskRunner.remainingWorkloadForCurrentTask()
+        return workload
+    
+    def fetchTaskRunnerQueue(self, processId: int) -> TaskQueue:
+        return self._localQueue
+    
+    def wakeTaskRunnerAt(self, time: int, processId: int):
+        self._simulator.registerEvent(time, processId)
     
     @abstractmethod
     def initializeConnection(self, simulator: Simulator):
@@ -35,18 +53,6 @@ class TaskNode(Node, TaskRunnerPlug):
             taskRunner = TaskRunner(self, self._flops)
             simulator.registerProcess(taskRunner)
             self._taskRunners.append(taskRunner)
-    
-    def currentWorkload(self):
-        workload = TaskRunner.remainingWorkloadTaskQueue(self._localQueue)
-        for taskRunner in self._taskRunners:
-            workload += taskRunner.remainingWorkloadForCurrentTask()
-        return workload
-    
-    def fetchTaskRunnerQueue(self, processId: int) -> TaskQueue:
-        return self._localQueue
-    
-    def wakeTaskRunnerAt(self, time: int, processId: int):
-        self._simulator.registerEvent(time, processId)
     
     @abstractmethod
     def taskRunComplete(self, task: Task, processId: int):

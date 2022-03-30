@@ -1,3 +1,1 @@
-- use Shannon–Hartley theorem to calculate the data rate. received transmit 
-and is calculated using the power of current devices transmitting. Since a modulation is
-used, it is assumed that interference does not occour. but a background noise exists
+- using a neural network instead, label will be task delay and input will be (state + action)

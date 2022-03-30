@@ -142,6 +142,10 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         transmitter.transmitQueue().put(parcel)
         self._simulator.registerEvent(Common.time(), transmitter.id())
     
+    def taskTransitionRecord(self, task: Task, state1, state2, selection) -> None:
+        #TODO
+        pass
+    
     def taskRunComplete(self, task: Task, processId: int):
         self._sendTaskResult(task)
     
@@ -149,7 +153,9 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         taskSenderNodeId = self._taskIdToSenderIdMap.pop(task.id())
         size = Config.get("task_result_parcel_size_in_bits")
         parcel = Parcel(Common.PARCEL_TYPE_TASK_RESULT, size, task, self.id())
-        self._simulator.sendParcel(parcel, taskSenderNodeId)
+        transmitter = self._transmitterMap[taskSenderNodeId]
+        transmitter.transmitQueue().put(parcel)
+        self._simulator.registerEvent(Common.time(), transmitter.id())
         
     def fetchDestinationConnection(self, processId: int) -> Connection:
         destNodeId = self._transmitterIdToDestNodeIdMap[processId]

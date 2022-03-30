@@ -12,6 +12,7 @@ from simulator.core.simulator import Simulator
 from simulator.core.task_queue import TaskQueue
 from simulator.core.task import Task
 from simulator.environment.task_node import TaskNode
+from simulator.environment.transition_recorder import Transition, TransitionRecorder
 from simulator.logger import Logger
 from simulator.processes.task_distributer import TaskDistributer, TaskDistributerPlug
 from simulator.processes.task_generator import TaskGenerator, TaskGeneratorPlug
@@ -27,10 +28,11 @@ class MobileNodePlug:
         pass
     
 class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug, ParcelTransmitterPlug):
-    def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int) -> None:#TODO a parameter for cpu cycles per second
+    def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int, 
+                 transitionRecorder: TransitionRecorder = None) -> None:#TODO a parameter for cpu cycles per second
         self._plug = plug
         self._edgeState = [0, 0]
-        super().__init__(externalId, flops, cores)
+        super().__init__(externalId, flops, cores, transitionRecorder)
     
     def edgeConnection(self) -> Connection:
         self._edgeConnection
@@ -112,13 +114,28 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id)
         self._transmitter.transmitQueue().put(parcel)
         self._simulator.registerEvent(Common.time(), self._transmitter.id())
+        #approximating the work load in edge by adding the current task to the last state report:
+        self._edgeState = [self._edgeState[0] + task.size() * task.workload(), self._edgeState[1] + 1]
+    
+    def taskTransitionRecord(self, task: Task, state1, state2, selection) -> None:
+        if (self._transitionRecorder != None):
+            action = 0
+            if selection != None: action = 1
+            transition = Transition(task.id(), state1, state2, action)
+            self._transitionRecorder.put(transition)
     
     def taskRunComplete(self, task: Task, processId: int):
         self._taskCompleted(task)
     
     def _taskCompleted(self, task: Task) -> None:
+        transition = self._transitionRecorder.get(task.id())
+        transition.delay = Common.time() - task.arrivalTime()
+        transition.completed = True
+        print("state1: " + str(transition.state1) + ", state2: " + str(transition.state2))
+        #TODO introduce a deadline penalty: it should be implemented either here or in DRL code
         if Logger.levelCanLog(2):
             Logger.log("Run Complete: " + str(task), 2)
+        
     def fetchDestinationConnection(self, processId: int) -> Connection:
         return self._edgeConnection
     

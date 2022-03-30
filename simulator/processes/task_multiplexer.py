@@ -23,6 +23,10 @@ class TaskMultiplexerPlug:
     def taskTransimission(self, task: Task, processId: int, destinationId: int) -> None:
         pass
     
+    @abstractmethod
+    def taskTransitionRecord(self, task: Task, state1, state2, selection) -> None:
+        pass
+    
 class TaskMultiplexerSelector:    
     @abstractmethod
     def select(self, task: Task, state: Sequence[float]) -> int:
@@ -56,11 +60,13 @@ class TaskMultiplexer(Process):
     
     def _multiplex(self, task: Task) -> None:
         selection = None
+        state1 = self._plug.fetchState(self.id())
         if task.hopLimit() > 0:
-            selection = self._selector.select(task, self._plug.fetchState(self.id()))
+            selection = self._selector.select(task, state1)
         if selection == None:
             self._plug.taskLocalExecution(task, self.id())
         else:
             task.setHopLimit(task.hopLimit() - 1)
             self._plug.taskTransimission(task, self.id(), selection)
-        
+        state2 = self._plug.fetchState(self.id())
+        self._plug.taskTransitionRecord(task, state1, state2, selection)
