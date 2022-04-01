@@ -9,7 +9,6 @@ class TransitionBuffer:
     self._transition_buffer = [None] * maxsize
     self._head = 0
     self._size = 0
-    pass
   
   def observer(self, transition: trajectories.Transition) -> None:
     self._put(transition)

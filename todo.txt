@@ -1,1 +1,2 @@
 - using a neural network instead, label will be task delay and input will be (state + action)
+- fix: DRL model is magically shared with all nodes, also the training time and decision making time is not accounted for

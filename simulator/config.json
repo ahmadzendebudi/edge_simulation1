@@ -27,6 +27,9 @@
     "edge_cpu_core_tflops": 3,
     "edge_cpu_cores": 4,
 
-    "_comment_debug_level": "debug level -1:No debug, 0: must show only, 1:breif debug, 2: medium debug, 3: extensive debug",
-    "debug_level": 2
+    "#debug_level": "debug level -1:No debug, 0: must show only, 1:breif debug, 2: medium debug, 3: extensive debug",
+    "debug_level": 2,
+
+    "#dql_parameters": "DQL parameters in this section",
+    "dql_learning_rate": 0.001
 }
