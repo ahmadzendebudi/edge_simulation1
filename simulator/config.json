@@ -31,5 +31,7 @@
     "debug_level": 2,
 
     "#dql_parameters": "DQL parameters in this section",
-    "dql_learning_rate": 0.001
+    "dql_learning_rate": 0.001,
+    "dql_training_batch_size": 200,
+    "dql_learning_discount": 0.9
 }

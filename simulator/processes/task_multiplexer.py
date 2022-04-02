@@ -1,6 +1,6 @@
 
 from abc import abstractmethod
-from typing import Sequence
+from typing import Any, Sequence
 from simulator.core.process import Process
 from simulator.core.task import Task
 from simulator.core.task_queue import TaskQueue
@@ -28,8 +28,16 @@ class TaskMultiplexerPlug:
         pass
     
 class TaskMultiplexerSelector:    
+    
     @abstractmethod
-    def select(self, task: Task, state: Sequence[float]) -> int:
+    def action(self, task: Task, state: Sequence[float]) -> Any:
+        '''First the actionObject is returned through this function. action object is used
+        for recording the transition. the action object is then passed on to select function
+        to retrieve the selection'''
+        pass
+    
+    @abstractmethod
+    def select(self, action: Any) -> int:
         '''it should return None for local execution, otherwise the id of the destination node'''
         pass
 
@@ -37,12 +45,18 @@ class TaskMultiplexerSelectorRandom(TaskMultiplexerSelector):
     def __init__(self, destIds: Sequence[int]) -> None:
         self._destIds = destIds + [None]
             
-    def select(self, task: Task, state: Sequence[float]) -> int:
+    def action(self, task: Task, state: Sequence[float]) -> Any:
         return np.random.choice(self._destIds)
     
+    def select(self, action: Any) -> int:
+        return action
+    
 class TaskMultiplexerSelectorLocal(TaskMultiplexerSelector):
-    def select(self, task: Task, state: Sequence[float]) -> int:
+    def action(self, task: Task, state: Sequence[float]) -> int:
         return None
+    
+    def select(self, action: Any) -> int:
+        return action
             
    
 class TaskMultiplexer(Process):
@@ -62,11 +76,12 @@ class TaskMultiplexer(Process):
         selection = None
         state1 = self._plug.fetchState(self.id())
         if task.hopLimit() > 0:
-            selection = self._selector.select(task, state1)
+            actionObject = self._selector.action(task, state1)
+            selection = self._selector.select(actionObject)
         if selection == None:
             self._plug.taskLocalExecution(task, self.id())
         else:
             task.setHopLimit(task.hopLimit() - 1)
             self._plug.taskTransimission(task, self.id(), selection)
         state2 = self._plug.fetchState(self.id())
-        self._plug.taskTransitionRecord(task, state1, state2, selection)
+        self._plug.taskTransitionRecord(task, state1, state2, actionObject)

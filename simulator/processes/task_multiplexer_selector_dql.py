@@ -2,6 +2,8 @@ from typing import Sequence
 from simulator.core.task import Task
 from simulator.processes.task_multiplexer import TaskMultiplexerSelector
 from simulator import Config
+from simulator import Logger
+from simulator.util.transition_buffer import TransitionBuffer
 
 import tensorflow as tf
 from tf_agents import agents
@@ -14,30 +16,48 @@ from tf_agents import specs
 from tf_agents import policies
 import numpy as np
 
+
 class TaskMultiplexerSelectorDql(TaskMultiplexerSelector):
     
-    def __init__(self) -> None:
+    def __init__(self, bufferSize: int = 10000) -> None:
         self._createAgent()
         self._collectPolicy = policies.py_tf_eager_policy.PyTFEagerPolicy(
             self._agent.collect_policy, use_tf_function=True)
+        self._buffer = TransitionBuffer(bufferSize)
         super().__init__()
     
-    def train(self) -> None:
-        #TODO
-        pass
-    
-    def select(self, task: Task, state: Sequence[float]) -> int:
-        '''it should return None for local execution, otherwise the id of the destination node'''
+    def action(self, task: Task, state: Sequence[float]) -> tj.PolicyStep:
         #TODO for now, the agent always uses collect policy as the environment is essumed to evolve. 
         #otherwise, it should switch to policy after a while
         timeStep = None #TODO do the conversion
-        actionStep = self._collectPolicy.action(timeStep)
-        action = actionStep.action
+        return self._collectPolicy.action(timeStep)
+    
+    def select(self, task: Task, state: Sequence[float]) -> int:
+        '''it should return None for local execution, otherwise the id of the destination node'''
+        action = self.action(task, state).action
         if action == 0:
             return None
         else:
             return action #TODO it should return the the edge with lowest queue size
+     
+    def addToBuffer(self, transition: tj.Transition):
+        self._buffer.put(transition)
+            
+    def train(self) -> None:
+        experience = self._buffer.sampleExperiences(Config.get("dql_training_batch_size"))
+        train_loss = self._agent.train(experience, None).loss
+        if hasattr(self, '_trainCount'):
+            self._trainCount += 1
+        else:
+            self._trainCount = 1
         
+        if self._trainCount % 100 == 0:
+            Logger.log("dql selector train loss after " + str(self._trainCount) + 
+                       " times of training: " + str(train_loss), 2)
+        elif self._trainCount % 25 == 0:
+            Logger.log("dql selector train loss after " + str(self._trainCount) + 
+                       " times of training: " + str(train_loss), 3)
+           
     
     def _createAgent(self) -> None:
         optimizer = tf.keras.optimizers.Adam(learning_rate=Config.get("dql_learning_rate"))

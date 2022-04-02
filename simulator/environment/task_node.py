@@ -11,7 +11,7 @@ from simulator.core.parcel_queue import ParcelQueue
 from simulator.core.process import Process
 from simulator.core.simulator import Simulator
 from simulator.core.task import Task
-from simulator.environment.transition_recorder import TransitionRecorder
+from simulator.environment.transition_recorder import TransitionRecorder, TwoStepTransitionRecorder
 from simulator.logger import Logger
 from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug, TaskMultiplexerSelectorLocal, TaskMultiplexerSelectorRandom
 from simulator.processes.task_runner import TaskRunner, TaskRunnerPlug
@@ -19,7 +19,7 @@ from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTran
 
 class TaskNode(Node, TaskRunnerPlug):
     def __init__(self, externalId: int, flops: int, cores: int, 
-                 transitionRecorder: TransitionRecorder = None) -> None:
+                 transitionRecorder: TwoStepTransitionRecorder = None) -> None:
         super().__init__(externalId)
         self._flops = flops
         self._cores = cores

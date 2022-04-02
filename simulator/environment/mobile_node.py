@@ -1,6 +1,9 @@
 from abc import abstractmethod
 from collections import deque
+from inspect import ismethoddescriptor
 from typing import Sequence, Tuple
+
+import numpy as np
 from simulator.common import Common
 from simulator.config import Config
 from simulator.core.node import Node
@@ -12,13 +15,16 @@ from simulator.core.simulator import Simulator
 from simulator.core.task_queue import TaskQueue
 from simulator.core.task import Task
 from simulator.environment.task_node import TaskNode
-from simulator.environment.transition_recorder import Transition, TransitionRecorder
+from simulator.environment.transition_recorder import Transition, TransitionRecorder, TwoStepTransitionRecorderPlug
 from simulator.logger import Logger
 from simulator.processes.task_distributer import TaskDistributer, TaskDistributerPlug
 from simulator.processes.task_generator import TaskGenerator, TaskGeneratorPlug
 from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug, TaskMultiplexerSelectorLocal, TaskMultiplexerSelectorRandom
+from simulator.processes.task_multiplexer_selector_dql import TaskMultiplexerSelectorDql
 from simulator.processes.task_runner import TaskRunner, TaskRunnerPlug
 from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTransmitterPlug
+
+from tf_agents import trajectories as tj
 
 class MobileNodePlug:
     @abstractmethod
@@ -27,7 +33,8 @@ class MobileNodePlug:
         this function is called again'''
         pass
     
-class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug, ParcelTransmitterPlug):
+class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug, ParcelTransmitterPlug,
+                 TwoStepTransitionRecorderPlug):
     def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int, 
                  transitionRecorder: TransitionRecorder = None) -> None:#TODO a parameter for cpu cycles per second
         self._plug = plug
@@ -65,6 +72,10 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         #TODO random selector should be replaced with DRL selector
         multiplex_selector = TaskMultiplexerSelectorRandom([self._edgeConnection.destNode()])
         #multiplex_selector = TaskMultiplexerSelectorLocal()
+        self._multiplex_dql_selector = TaskMultiplexerSelectorDql()#TODO buffer size
+        self._taskSelectorProcess = Process()
+        self._taskSelectorProcess.wake = self._trainTaskSelector
+        self._simulator.registerProcess(self._taskSelectorProcess)
         
         self._taskMultiplexer = TaskMultiplexer(self, multiplex_selector)
         simulator.registerProcess(self._taskMultiplexer)
@@ -128,13 +139,30 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         self._taskCompleted(task)
     
     def _taskCompleted(self, task: Task) -> None:
-        transition = self._transitionRecorder.get(task.id())
-        transition.delay = Common.time() - task.arrivalTime()
-        transition.completed = True
-        print("state1: " + str(transition.state1) + ", state2: " + str(transition.state2))
-        #TODO introduce a deadline penalty: it should be implemented either here or in DRL code
+        delay = Common.time() - task.arrivalTime()
+        self._transitionRecorder.completeTransition(task.id(), delay)
         if Logger.levelCanLog(2):
             Logger.log("Run Complete: " + str(task), 2)
+    
+    def _trainTaskSelector(self):
+        discount = Config.get("dql_learning_discount")
+        for transition in self._completedTransitionList:
+            observation1 = np.array(transition.state1, dtype=np.float32)
+            observation2 = np.array(transition.state2, dtype=np.float32)
+            reward = transition.reward()
+            stepType = tj.time_step.StepType.MID
+            time_step1 = tj.time_step.TimeStep(step_type=stepType, reward=reward, 
+                                               observation=observation1, discount=discount)
+            time_step2 = tj.time_step.TimeStep(step_type=stepType, reward=reward, 
+                                               observation=observation2, discount=discount)
+            action_step = transition.action
+            self._multiplex_dql_selector.addToBuffer(tj.Transition(time_step1, action_step, time_step2))
+        
+        self._multiplex_dql_selector.train()
+    
+    def transitionRecorderLimitReached(self, completedTransitions: Sequence[Transition]):
+        self._completedTransitionList = completedTransitions
+        self._simulator.registerEvent(Common.time(), self._taskSelectorProcess.id())
         
     def fetchDestinationConnection(self, processId: int) -> Connection:
         return self._edgeConnection
