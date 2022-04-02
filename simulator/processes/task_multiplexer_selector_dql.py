@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import Sequence
 from simulator.core.task import Task
 from simulator.processes.task_multiplexer import TaskMultiplexerSelector
@@ -16,29 +17,36 @@ from tf_agents import specs
 from tf_agents import policies
 import numpy as np
 
+class TaskMultiplexerSelectorDqlPlug:
+    @abstractmethod
+    def convertStateToTimeStep(self, task: Task, state: Sequence[float]):
+        pass
 
 class TaskMultiplexerSelectorDql(TaskMultiplexerSelector):
     
-    def __init__(self, bufferSize: int = 10000) -> None:
+    def __init__(self, observation_spec: types.NestedSpec,
+                 plug: TaskMultiplexerSelectorDqlPlug, bufferSize: int = 10000) -> None:
+        self._observation_spec = observation_spec
+        self._plug = plug
+        self._buffer = TransitionBuffer(bufferSize)
         self._createAgent()
         self._collectPolicy = policies.py_tf_eager_policy.PyTFEagerPolicy(
             self._agent.collect_policy, use_tf_function=True)
-        self._buffer = TransitionBuffer(bufferSize)
         super().__init__()
     
     def action(self, task: Task, state: Sequence[float]) -> tj.PolicyStep:
         #TODO for now, the agent always uses collect policy as the environment is essumed to evolve. 
         #otherwise, it should switch to policy after a while
-        timeStep = None #TODO do the conversion
+        timeStep = self._plug.convertStateToTimeStep(task, state)
         return self._collectPolicy.action(timeStep)
     
-    def select(self, task: Task, state: Sequence[float]) -> int:
+    def select(self, actionStep) -> int:
         '''it should return None for local execution, otherwise the id of the destination node'''
-        action = self.action(task, state).action
+        action = actionStep.action
         if action == 0:
             return None
         else:
-            return action #TODO it should return the the edge with lowest queue size
+            return action #TODO if used for edge, it should somehow return the edge with lowest load instead of 1
      
     def addToBuffer(self, transition: tj.Transition):
         self._buffer.put(transition)
@@ -76,18 +84,16 @@ class TaskMultiplexerSelectorDql(TaskMultiplexerSelector):
     
     
     def _timestepTensorSpec(self) -> tj.TimeStep:
-        return tj.time_step.time_step_spec(self._observation_spec(), self._reward_spec())
-    
-    def _observation_spec(self) -> types.NestedSpec:
-        return specs.array_spec.BoundedArraySpec((5,), np.float32, 1, 3, 'observation')
-        #TODO it should be passed on to the selector from the transition recorder or something
+        return specs.tensor_spec.from_spec(
+            tj.time_step.time_step_spec(self._observation_spec, self._reward_spec()))
     
     def _reward_spec(self) -> types.NestedSpec:
         return specs.array_spec.ArraySpec(shape=(), dtype=np.float32, name='reward')
     
     def _actionTensorSpec(self) -> types.NestedTensorSpec:
-        '''): local execution, 1: offload to the edge or the edge with lowest workload or something similar!!'''
-        specs.array_spec.BoundedArraySpec((), np.int32, 0, 1, 'action')
+        '''0: local execution, 1: offload to the edge or the edge with lowest workload or something similar!!'''
+        return specs.tensor_spec.from_spec(
+            specs.array_spec.BoundedArraySpec((), np.int32, 0, 1, 'action'))
     
     def _qNetwork(self) -> network.Network:
         fc_layer_params = (50, 20)
@@ -112,4 +118,5 @@ class TaskMultiplexerSelectorDql(TaskMultiplexerSelector):
             activation=None)
         q_net = networks.sequential.Sequential(dense_layers + [q_values_layer])
         return q_net
+    
     

@@ -56,7 +56,8 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         edgeDestNodeIds = []
         for connection in self._edgeConnections:
             edgeDestNodeIds.append(connection.destNode())
-        multiplex_selector = TaskMultiplexerSelectorRandom(edgeDestNodeIds)
+        #multiplex_selector = TaskMultiplexerSelectorRandom(edgeDestNodeIds)
+        multiplex_selector = TaskMultiplexerSelectorLocal()
         #<--
         self._taskMultiplexer = TaskMultiplexer(self, multiplex_selector)
         simulator.registerProcess(self._taskMultiplexer)

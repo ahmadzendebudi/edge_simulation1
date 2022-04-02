@@ -33,5 +33,7 @@
     "#dql_parameters": "DQL parameters in this section",
     "dql_learning_rate": 0.001,
     "dql_training_batch_size": 200,
+    "dql_training_interval": 100,
+    "dql_training_buffer_size": 10000,
     "dql_learning_discount": 0.9
 }

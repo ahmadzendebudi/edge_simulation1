@@ -24,7 +24,7 @@ class TaskMultiplexerPlug:
         pass
     
     @abstractmethod
-    def taskTransitionRecord(self, task: Task, state1, state2, selection) -> None:
+    def taskTransitionRecord(self, task: Task, state1, state2, actionObject) -> None:
         pass
     
 class TaskMultiplexerSelector:    

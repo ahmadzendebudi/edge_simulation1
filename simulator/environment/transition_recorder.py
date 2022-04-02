@@ -15,7 +15,8 @@ class Transition:
     def reward(self):
         #TODO compute reward properly
         #TODO introduce a deadline penalty: it should be implemented either here or in DRL code
-        return - self.delay
+        return self.delay
+    
 
 class TransitionRecorder:
     @abstractmethod

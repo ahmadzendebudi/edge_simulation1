@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from collections import deque
 from inspect import ismethoddescriptor
-from typing import Sequence, Tuple
+from typing import Any, Sequence, Tuple
 
 import numpy as np
 from simulator.common import Common
@@ -19,12 +19,8 @@ from simulator.environment.transition_recorder import Transition, TransitionReco
 from simulator.logger import Logger
 from simulator.processes.task_distributer import TaskDistributer, TaskDistributerPlug
 from simulator.processes.task_generator import TaskGenerator, TaskGeneratorPlug
-from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug, TaskMultiplexerSelectorLocal, TaskMultiplexerSelectorRandom
-from simulator.processes.task_multiplexer_selector_dql import TaskMultiplexerSelectorDql
-from simulator.processes.task_runner import TaskRunner, TaskRunnerPlug
+from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug, TaskMultiplexerSelector, TaskMultiplexerSelectorLocal, TaskMultiplexerSelectorRandom
 from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTransmitterPlug
-
-from tf_agents import trajectories as tj
 
 class MobileNodePlug:
     @abstractmethod
@@ -32,9 +28,27 @@ class MobileNodePlug:
         '''Should return the current connection and the maximum duration before which
         this function is called again'''
         pass
+
+class TaskMultiplexerSelectorMobile(TaskMultiplexerSelector):
+    def __init__(self, innerSelector: TaskMultiplexerSelector, destId: int) -> None:
+        self._innerSelector = innerSelector
+        self._destId = destId
+        super().__init__()
     
-class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug, ParcelTransmitterPlug,
-                 TwoStepTransitionRecorderPlug):
+    def action(self, task: Task, state: Sequence[float]) -> Any:
+        return self._innerSelector.action(task, state)
+    
+    def select(self, action: Any) -> int:
+        selection = self._innerSelector.select(action)
+        if selection == 1:
+            return self._destId
+        elif selection == None:
+            return None
+        else:
+            raise ValueError("output selection: " + str(selection) + " is not supported by this selector")
+            
+            
+class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int, 
                  transitionRecorder: TransitionRecorder = None) -> None:#TODO a parameter for cpu cycles per second
         self._plug = plug
@@ -58,7 +72,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         if (duration != None):
             self._simulator.registerEvent(Common.time() + duration, self._connectionProcess.id())
         
-    def initializeProcesses(self, simulator: Simulator):
+    def initializeProcesses(self, simulator: Simulator, multiplexSelector: TaskMultiplexerSelector):
         super().initializeProcesses(simulator)
         
         self._taskDistributer = TaskDistributer(self)
@@ -70,14 +84,11 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         simulator.registerProcess(self._taskGenerator)
         
         #TODO random selector should be replaced with DRL selector
-        multiplex_selector = TaskMultiplexerSelectorRandom([self._edgeConnection.destNode()])
+        #multiplex_selector = TaskMultiplexerSelectorRandom([self._edgeConnection.destNode()])
         #multiplex_selector = TaskMultiplexerSelectorLocal()
-        self._multiplex_dql_selector = TaskMultiplexerSelectorDql()#TODO buffer size
-        self._taskSelectorProcess = Process()
-        self._taskSelectorProcess.wake = self._trainTaskSelector
-        self._simulator.registerProcess(self._taskSelectorProcess)
-        
-        self._taskMultiplexer = TaskMultiplexer(self, multiplex_selector)
+        mobileMultiplexSelector = TaskMultiplexerSelectorMobile(
+            multiplexSelector, self._edgeConnection.destNode())
+        self._taskMultiplexer = TaskMultiplexer(self, mobileMultiplexSelector)
         simulator.registerProcess(self._taskMultiplexer)
         self._multiplexQueue = TaskQueue()
         simulator.registerTaskQueue(self._multiplexQueue)
@@ -111,6 +122,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         return [self._edgeConnection.datarate(), self.currentWorkload() / normalTaskWorkload,
                 self._localQueue.qsize(), self._edgeState[0]/normalTaskWorkload, self._edgeState[1]]
     
+    
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:
         return self._multiplexQueue
     
@@ -121,18 +133,18 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
     
     def taskTransimission(self, task: Task, processId: int, destinationId: int) -> None:
         if self._edgeConnection.destNode() != destinationId:
-            raise ValueError("destination ids do not match, something most have gone wrong")
+            raise ValueError("destination ids do not match, something most have gone wrong" +
+                             "received dest id:" + str(destinationId) + ", mobile node dest id" +
+                             str(self._edgeConnection.destNode()))
         parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id)
         self._transmitter.transmitQueue().put(parcel)
         self._simulator.registerEvent(Common.time(), self._transmitter.id())
         #approximating the work load in edge by adding the current task to the last state report:
         self._edgeState = [self._edgeState[0] + task.size() * task.workload(), self._edgeState[1] + 1]
     
-    def taskTransitionRecord(self, task: Task, state1, state2, selection) -> None:
+    def taskTransitionRecord(self, task: Task, state1, state2, actionObject) -> None:
         if (self._transitionRecorder != None):
-            action = 0
-            if selection != None: action = 1
-            transition = Transition(task.id(), state1, state2, action)
+            transition = Transition(task.id(), state1, state2, actionObject)
             self._transitionRecorder.put(transition)
     
     def taskRunComplete(self, task: Task, processId: int):
@@ -144,26 +156,6 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         if Logger.levelCanLog(2):
             Logger.log("Run Complete: " + str(task), 2)
     
-    def _trainTaskSelector(self):
-        discount = Config.get("dql_learning_discount")
-        for transition in self._completedTransitionList:
-            observation1 = np.array(transition.state1, dtype=np.float32)
-            observation2 = np.array(transition.state2, dtype=np.float32)
-            reward = transition.reward()
-            stepType = tj.time_step.StepType.MID
-            time_step1 = tj.time_step.TimeStep(step_type=stepType, reward=reward, 
-                                               observation=observation1, discount=discount)
-            time_step2 = tj.time_step.TimeStep(step_type=stepType, reward=reward, 
-                                               observation=observation2, discount=discount)
-            action_step = transition.action
-            self._multiplex_dql_selector.addToBuffer(tj.Transition(time_step1, action_step, time_step2))
-        
-        self._multiplex_dql_selector.train()
-    
-    def transitionRecorderLimitReached(self, completedTransitions: Sequence[Transition]):
-        self._completedTransitionList = completedTransitions
-        self._simulator.registerEvent(Common.time(), self._taskSelectorProcess.id())
-        
     def fetchDestinationConnection(self, processId: int) -> Connection:
         return self._edgeConnection
     
