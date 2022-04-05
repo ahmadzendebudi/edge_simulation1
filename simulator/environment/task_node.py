@@ -57,3 +57,4 @@ class TaskNode(Node, TaskRunnerPlug):
     @abstractmethod
     def taskRunComplete(self, task: Task, processId: int):
         pass
+    

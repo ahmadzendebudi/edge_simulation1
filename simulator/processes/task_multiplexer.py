@@ -8,7 +8,15 @@ import numpy as np
 
 class TaskMultiplexerPlug:
     @abstractmethod
-    def fetchState(self, processId: int) -> Sequence[float]:
+    def fetchState(self, task: Task, processId: int) -> Sequence[float]:
+        '''It should not add the workload of the task to any queues, this does not include the edition of
+        the task to the edge queue for approximation'''
+        pass
+    
+    @abstractmethod
+    def fetchTaskInflatedState(self, task: Task, processId: int) -> Sequence[float]:
+        '''It should add the workload of the task to both local and edge queues, as if every 
+        queue is required to process the task'''
         pass
     
     @abstractmethod
@@ -74,7 +82,7 @@ class TaskMultiplexer(Process):
     
     def _multiplex(self, task: Task) -> None:
         selection = None
-        state1 = self._plug.fetchState(self.id())
+        state1 = self._plug.fetchTaskInflatedState(task, self.id())
         if task.hopLimit() > 0:
             actionObject = self._selector.action(task, state1)
             selection = self._selector.select(actionObject)
@@ -83,5 +91,5 @@ class TaskMultiplexer(Process):
         else:
             task.setHopLimit(task.hopLimit() - 1)
             self._plug.taskTransimission(task, self.id(), selection)
-        state2 = self._plug.fetchState(self.id())
+        state2 = self._plug.fetchState(task, self.id())
         self._plug.taskTransitionRecord(task, state1, state2, actionObject)

@@ -35,5 +35,5 @@
     "dql_training_batch_size": 200,
     "dql_training_interval": 100,
     "dql_training_buffer_size": 10000,
-    "dql_learning_discount": 0.1
+    "dql_learning_discount": 0.9
 }

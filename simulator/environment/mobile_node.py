@@ -117,11 +117,23 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         self._multiplexQueue.put(task)
         self._simulator.registerEvent(Common.time(), self._taskMultiplexer.id())
     
-    def fetchState(self, processId: int) -> Sequence[float]:
-        normalTaskWorkload = Config.get("task_size_kBit") * Config.get("task_kflops_per_bit") * 10 ** 6
-        return [self._edgeConnection.datarate(), self.currentWorkload() / normalTaskWorkload,
-                self._localQueue.qsize(), self._edgeState[0]/normalTaskWorkload, self._edgeState[1]]
+    def fetchState(self, task: Task, processId: int) -> Sequence[float]:
+        return self._generateState(task, self._edgeConnection.datarate(), self.currentWorkload(),
+                self._localQueue.qsize(), self._edgeState[0], self._edgeState[1])
     
+    
+    def fetchTaskInflatedState(self, task: Task, processId: int) -> Sequence[float]:
+        taskWorkload = task.size() * task.workload()
+        return self._generateState(task, self._edgeConnection.datarate(),
+                self.currentWorkload() + taskWorkload, self._localQueue.qsize() + 1,
+                self._edgeState[0] + taskWorkload, self._edgeState[1] + 1)
+    
+    def _generateState(self, task: Task, datarate: int, localWorkload: int, localQueueSize: int,
+                       remoteWorkload: int, remoteQueueSize: int):
+        normalTaskWorkload = Config.get("task_size_kBit") * Config.get("task_kflops_per_bit") * 10 ** 6
+        return [task.size() * task.workload() / normalTaskWorkload, 
+                datarate / (10 ** 6), localWorkload / normalTaskWorkload,
+                localQueueSize, remoteWorkload/normalTaskWorkload, remoteQueueSize]
     
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:
         return self._multiplexQueue

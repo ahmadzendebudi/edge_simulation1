@@ -126,7 +126,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         else:
             raise RuntimeError("Parcel type not supported for edge node")
     
-    def fetchState(self, processId: int) -> Sequence[float]:
+    def fetchState(self, task: Task, processId: int) -> Sequence[float]:
         return []#TODO
     
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:

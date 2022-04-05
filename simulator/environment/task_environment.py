@@ -60,7 +60,7 @@ class TaskEnvironment(Environment):
     
     
     def _observationSpec(self):
-        return specs.array_spec.BoundedArraySpec((5,), np.float32, minimum=0, name='observation')
+        return specs.array_spec.BoundedArraySpec((6,), np.float32, minimum=0, name='observation')
     
     def _trainTaskSelector(self):
         #Store current completed transitions to transition buffer
