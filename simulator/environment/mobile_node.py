@@ -15,7 +15,7 @@ from simulator.core.simulator import Simulator
 from simulator.core.task_queue import TaskQueue
 from simulator.core.task import Task
 from simulator.environment.task_node import TaskNode
-from simulator.environment.transition_recorder import Transition, TransitionRecorder, TwoStepTransitionRecorderPlug
+from simulator.environment.transition_recorder import Transition, TransitionRecorder
 from simulator.logger import Logger
 from simulator.processes.task_distributer import TaskDistributer, TaskDistributerPlug
 from simulator.processes.task_generator import TaskGenerator, TaskGeneratorPlug
@@ -42,7 +42,7 @@ class TaskMultiplexerSelectorMobile(TaskMultiplexerSelector):
         selection = self._innerSelector.select(action)
         if selection == 1:
             return self._destId
-        elif selection == None:
+        elif selection == None or selection == 0:
             return None
         else:
             raise ValueError("output selection: " + str(selection) + " is not supported by this selector")

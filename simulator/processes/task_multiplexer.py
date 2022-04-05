@@ -48,6 +48,7 @@ class TaskMultiplexerSelector:
     def select(self, action: Any) -> int:
         '''it should return None for local execution, otherwise the id of the destination node'''
         pass
+    
 
 class TaskMultiplexerSelectorRandom(TaskMultiplexerSelector):
     def __init__(self, destIds: Sequence[int]) -> None:
