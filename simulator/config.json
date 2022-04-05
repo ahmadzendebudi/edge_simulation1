@@ -1,5 +1,5 @@
 {
-    "task_generation_duration": 200,
+    "task_generation_duration": 100,
     "node_state_transmission_interval": 2,
     "task_generator_prefetch_time": 50,
     "task_generator_lambda": 0.5,
@@ -35,5 +35,5 @@
     "dql_training_batch_size": 200,
     "dql_training_interval": 100,
     "dql_training_buffer_size": 10000,
-    "dql_learning_discount": 0.9
+    "dql_learning_discount": 0.1
 }
