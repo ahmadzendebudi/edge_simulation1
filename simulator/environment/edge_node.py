@@ -112,11 +112,10 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
             taskGeneration = Common.time() < Config.get("task_generation_duration")
             emptyQueues = self.currentWorkload() == 0 and self._multiplexQueue.qsize() == 0
             if taskGeneration or not emptyQueues or not self._lastTransmitEmptyQueues:
-                if emptyQueues:
-                    self._lastTransmitEmptyQueues = True
+                self._lastTransmitEmptyQueues = emptyQueues
                 self._lastStateTransmission = Common.time()
                 self._simulator.registerEvent(Common.time() + Config.get("node_state_transmission_interval"), self.id())
-            self._transmitNodeState()
+                self._transmitNodeState()
             
     def _transmitNodeState(self):
         if Logger.levelCanLog(3):
@@ -125,7 +124,6 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         content = [self.id(), self.currentWorkload(), self._localQueue.qsize()]
         size = Config.get("state_parcel_size_per_variable_in_bits") * len(content)
         parcel = Parcel(Common.PARCEL_TYPE_NODE_STATE, size, content, self.id())
-        
         for destId in self._nodeConnectionMap.keys():
             transmitter = self._transmitterMap[destId]
             transmitter.transmitQueue().put(parcel)

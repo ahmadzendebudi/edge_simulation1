@@ -82,7 +82,7 @@ class Simulator:
     
     def registerEvent(self, time: int, processId: int) -> None:
         self._eventHeap.addEvent(time, processId)
-    
+        
     def getParcelQueue(self, id: int) -> TaskQueue:
         return self._parcelQueueMap[id]
     
