@@ -8,7 +8,7 @@ from simulator.core.simulator import Simulator
 from simulator.environment.edge_node import EdgeNode
 from simulator.environment.mobile_node import MobileNode
 from simulator.core.environment import Environment
-from simulator.task_multiplexing.selector import TaskMultiplexerSelectorLocal
+from simulator.task_multiplexing.selector import TaskMultiplexerSelectorLocal, TaskMultiplexerSelectorRandom
 from simulator.task_multiplexing.transition_recorder import Transition, TransitionRecorderPlug, TwoStepTransitionRecorder
 
 from tf_agents import specs
@@ -35,7 +35,7 @@ class TaskEnvironment(Environment):
             MobileNode.fetchStateShape(), Config.get("dql_training_buffer_size"))
         
         #TODO to be replaced
-        taskSelectorLocal = TaskMultiplexerSelectorLocal()
+        taskSelectorLocal = TaskMultiplexerSelectorRandom([1])
         
         for edgeNode in self._edgeNodes:
             edgeNode.initializeProcesses(simulator, taskSelectorLocal)

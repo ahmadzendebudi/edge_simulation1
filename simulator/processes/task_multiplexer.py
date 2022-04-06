@@ -38,13 +38,16 @@ class TaskMultiplexer(Process):
     def _multiplex(self, task: Task) -> None:
         selection = None
         state1 = self._stateHandler.fetchTaskInflatedState(task, self.id())
+        recordTransition = False
         if task.hopLimit() > 0:
             actionObject = self._selector.action(task, state1)
             selection = self._selector.select(actionObject)
+            recordTransition = True
         if selection == None:
             self._plug.taskLocalExecution(task, self.id())
         else:
             task.setHopLimit(task.hopLimit() - 1)
             self._plug.taskTransimission(task, self.id(), selection)
-        state2 = self._stateHandler.fetchState(task, self.id())
-        self._stateHandler.recordTransition(task, state1, state2, actionObject)
+        if recordTransition:
+            state2 = self._stateHandler.fetchState(task, self.id())
+            self._stateHandler.recordTransition(task, state1, state2, actionObject)

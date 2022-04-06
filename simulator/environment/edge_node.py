@@ -22,6 +22,9 @@ class TaskMultiplexerSelectorEdge(TaskMultiplexerSelector):
         self._destId = destId
         super().__init__()
     
+    def setDestId(self, id: int):
+        self._destId = id
+    
     def action(self, task: Task, state: Sequence[float]) -> Any:
         return self._innerSelector.action(task, state)
     
@@ -46,6 +49,7 @@ class EdgeNodePlug:
 class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def __init__(self, externalId: int, plug: EdgeNodePlug, flops: int, cores: int) -> None:#TODO in case of multicore, we should have multiple task runners
         self._plug = plug
+        self._edgeStatesMap = {}
         super().__init__(externalId, flops, cores)
     
     def initializeConnection(self, simulator: Simulator):
@@ -70,9 +74,9 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         super().initializeProcesses(simulator)
         
         #TODO I should give it the edge with lowest workload and keep it updated (instead of [0])
-        edgeMultiplexSelector = TaskMultiplexerSelectorEdge(
+        self._edgeMultiplexSelector = TaskMultiplexerSelectorEdge(
             multiplexSelector, self._edgeConnections[0].destNode())
-        self._taskMultiplexer = TaskMultiplexer(self, edgeMultiplexSelector, self)
+        self._taskMultiplexer = TaskMultiplexer(self, self._edgeMultiplexSelector, self)
         simulator.registerProcess(self._taskMultiplexer)
         self._multiplexQueue = TaskQueue()
         simulator.registerTaskQueue(self._multiplexQueue)
@@ -122,8 +126,8 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         size = Config.get("state_parcel_size_per_variable_in_bits") * len(content)
         parcel = Parcel(Common.PARCEL_TYPE_NODE_STATE, size, content, self.id())
         
-        for mobileConnection in self._mobileConnections:
-            transmitter = self._transmitterMap[mobileConnection.destNode()]
+        for destId in self._nodeConnectionMap.keys():
+            transmitter = self._transmitterMap[destId]
             transmitter.transmitQueue().put(parcel)
             self._simulator.registerEvent(Common.time(), transmitter.id())
         
@@ -136,9 +140,22 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         elif parcel.type == Common.PARCEL_TYPE_TASK_RESULT:
             task = parcel.content
             self._sendTaskResult(task)
+        elif parcel.type == Common.PARCEL_TYPE_NODE_STATE:
+            content = parcel.content
+            self._edgeStatesMap[content[0]] = [content[1], content[2]]
+            self._updateEdgeMultiplexerSelector()
         else:
             raise RuntimeError("Parcel type not supported for edge node")
     
+    def _updateEdgeMultiplexerSelector(self):
+        destId = None
+        minWorkload = None
+        for id, value in self._edgeStatesMap.items():
+            if minWorkload == None or minWorkload > value[0]:
+                destId = id
+        if destId != None:
+            self._edgeMultiplexSelector.setDestId(destId)
+            
     #State handler:
     def fetchState(self, task: Task, processId: int) -> Sequence[float]:
         return []#TODO
@@ -191,3 +208,4 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     
     def wakeTaskRunnerAt(self, time: int, processId: int):
         return super().wakeTaskRunnerAt(time, processId)
+    
