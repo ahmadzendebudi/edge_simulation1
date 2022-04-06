@@ -1,61 +1,9 @@
 from abc import abstractmethod
 from typing import Sequence
 
-import numpy as np
-from tf_agents import trajectories as tj
-from tf_agents import specs
-
-from simulator.config import Config
+from simulator.task_multiplexing.transition import Transition
 
 
-class Transition:
-    def __init__(self, taskId, state1 = None, state2 = None, action = None, delay = None, completed = False) -> None:
-        self.taskId = taskId
-        self.state1 = state1
-        self.state2 = state2
-        self.action = action
-        self.delay = delay
-        self.completed = completed
-    
-    def reward(self):
-        #TODO compute reward properly
-        #TODO introduce a deadline penalty: it should be implemented either here or in DRL code
-        return - self.delay
- 
-class TransitionUtil:
-    @classmethod
-    def convertToTfTransition(cls, transition: Transition):  
-        #Store current completed transitions to transition buffer
-        if not hasattr(cls, 'discountnp'):
-            cls.discount = Config.get("dql_learning_discount")
-            cls.discountnp = np.array(cls.discount, np.float32)
-        
-        observation1 = np.array(transition.state1, dtype=np.float32)
-        observation2 = np.array(transition.state2, dtype=np.float32)
-        reward = np.array(transition.reward(), np.float32)
-        stepType = tj.time_step.StepType.MID
-        time_step1 = tj.time_step.TimeStep(step_type=stepType, reward=reward, 
-                                            observation=observation1, discount=cls.discountnp)
-        time_step2 = tj.time_step.TimeStep(step_type=stepType, reward=reward, 
-                                            observation=observation2, discount=cls.discountnp)
-        action_step = transition.action
-        return tj.Transition(time_step1, action_step, time_step2)
-    
-    @classmethod
-    def convertStateToTfTimeStep(cls, state: Sequence[float]):
-        if not hasattr(cls, 'discountnp'):
-            cls.discount = Config.get("dql_learning_discount")
-            cls.discountnp = np.array(cls.discount, np.float32)
-            
-        stepType = tj.time_step.StepType.MID
-        observation = np.array(state, dtype=np.float32)
-        
-        return tj.time_step.TimeStep(step_type=stepType, observation=observation, reward= 0, discount=cls.discount)   
-
-    @classmethod
-    def tfObservationSpec(cls):
-        return specs.array_spec.BoundedArraySpec((6,), np.float32, minimum=0, name='observation')
-    
 class TransitionRecorderPlug:
     @abstractmethod
     def transitionRecorderLimitReached(self, completedTransitions: Sequence[Transition]):

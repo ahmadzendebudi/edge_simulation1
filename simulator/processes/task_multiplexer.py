@@ -1,24 +1,13 @@
 
 from abc import abstractmethod
-from typing import Any, Sequence
 from simulator.core.process import Process
 from simulator.core.task import Task
 from simulator.core.task_queue import TaskQueue
-import numpy as np
+
+from simulator.task_multiplexing.selector import TaskMultiplexerSelector
+from simulator.task_multiplexing.state_handler import StateHandler
 
 class TaskMultiplexerPlug:
-    @abstractmethod
-    def fetchState(self, task: Task, processId: int) -> Sequence[float]:
-        '''It should not add the workload of the task to any queues, this does not include the edition of
-        the task to the edge queue for approximation'''
-        pass
-    
-    @abstractmethod
-    def fetchTaskInflatedState(self, task: Task, processId: int) -> Sequence[float]:
-        '''It should add the workload of the task to both local and edge queues, as if every 
-        queue is required to process the task'''
-        pass
-    
     @abstractmethod
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:
         pass
@@ -31,49 +20,14 @@ class TaskMultiplexerPlug:
     def taskTransimission(self, task: Task, processId: int, destinationId: int) -> None:
         pass
     
-    @abstractmethod
-    def taskTransitionRecord(self, task: Task, state1, state2, actionObject) -> None:
-        pass
-    
-class TaskMultiplexerSelector:    
-    
-    @abstractmethod
-    def action(self, task: Task, state: Sequence[float]) -> Any:
-        '''First the actionObject is returned through this function. action object is used
-        for recording the transition. the action object is then passed on to select function
-        to retrieve the selection'''
-        pass
-    
-    @abstractmethod
-    def select(self, action: Any) -> int:
-        '''it should return None for local execution, otherwise the id of the destination node'''
-        pass
-    
 
-class TaskMultiplexerSelectorRandom(TaskMultiplexerSelector):
-    def __init__(self, destIds: Sequence[int]) -> None:
-        self._destIds = destIds + [None]
-            
-    def action(self, task: Task, state: Sequence[float]) -> Any:
-        return np.random.choice(self._destIds)
-    
-    def select(self, action: Any) -> int:
-        return action
-    
-class TaskMultiplexerSelectorLocal(TaskMultiplexerSelector):
-    def action(self, task: Task, state: Sequence[float]) -> int:
-        return None
-    
-    def select(self, action: Any) -> int:
-        return action
-            
-   
 class TaskMultiplexer(Process):
     
-    def __init__(self, plug: TaskMultiplexerPlug, selector: TaskMultiplexerSelector) -> None:
+    def __init__(self, plug: TaskMultiplexerPlug, selector: TaskMultiplexerSelector, stateHandler: StateHandler) -> None:
         super().__init__()
         self._plug = plug
         self._selector = selector
+        self._stateHandler = stateHandler
         
     def wake(self) -> None:
         queue = self._plug.fetchMultiplexerQueue(self._id)
@@ -83,7 +37,7 @@ class TaskMultiplexer(Process):
     
     def _multiplex(self, task: Task) -> None:
         selection = None
-        state1 = self._plug.fetchTaskInflatedState(task, self.id())
+        state1 = self._stateHandler.fetchTaskInflatedState(task, self.id())
         if task.hopLimit() > 0:
             actionObject = self._selector.action(task, state1)
             selection = self._selector.select(actionObject)
@@ -92,5 +46,5 @@ class TaskMultiplexer(Process):
         else:
             task.setHopLimit(task.hopLimit() - 1)
             self._plug.taskTransimission(task, self.id(), selection)
-        state2 = self._plug.fetchState(task, self.id())
-        self._plug.taskTransitionRecord(task, state1, state2, actionObject)
+        state2 = self._stateHandler.fetchState(task, self.id())
+        self._stateHandler.recordTransition(task, state1, state2, actionObject)

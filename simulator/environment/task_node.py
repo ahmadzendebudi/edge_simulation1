@@ -1,23 +1,14 @@
 from abc import abstractmethod
-from typing import Sequence, Tuple
-import simulator
-from simulator.common import Common
-from simulator.config import Config
 from simulator.core import Node
-from simulator.core import Connection
 from simulator.core import TaskQueue
-from simulator.core.parcel import Parcel
-from simulator.core.parcel_queue import ParcelQueue
-from simulator.core.process import Process
 from simulator.core.simulator import Simulator
 from simulator.core.task import Task
-from simulator.environment.transition_recorder import TransitionRecorder, TwoStepTransitionRecorder
-from simulator.logger import Logger
-from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug, TaskMultiplexerSelectorLocal, TaskMultiplexerSelectorRandom
+from simulator.task_multiplexing.state_handler import StateHandler
+from simulator.task_multiplexing.transition import Transition
+from simulator.task_multiplexing.transition_recorder import TransitionRecorder, TwoStepTransitionRecorder
 from simulator.processes.task_runner import TaskRunner, TaskRunnerPlug
-from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTransmitterPlug
 
-class TaskNode(Node, TaskRunnerPlug):
+class TaskNode(Node, StateHandler, TaskRunnerPlug):
     def __init__(self, externalId: int, flops: int, cores: int, 
                  transitionRecorder: TwoStepTransitionRecorder = None) -> None:
         super().__init__(externalId)
@@ -54,7 +45,8 @@ class TaskNode(Node, TaskRunnerPlug):
             simulator.registerProcess(taskRunner)
             self._taskRunners.append(taskRunner)
     
-    @abstractmethod
-    def taskRunComplete(self, task: Task, processId: int):
-        pass
+    def recordTransition(self, task: Task, state1, state2, actionObject) -> None:
+        if (self._transitionRecorder != None):
+            transition = Transition(task.id(), state1, state2, actionObject)
+            self._transitionRecorder.put(transition)
     

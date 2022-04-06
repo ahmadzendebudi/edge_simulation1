@@ -8,7 +8,6 @@ from simulator.processes.task_generator import TaskGenerator
 
 from simulator.processes.task_multiplexer import TaskMultiplexerPlug
 from simulator.processes.task_multiplexer import TaskMultiplexer
-from simulator.processes.task_multiplexer_selector_dql import TaskMultiplexerSelectorDql
 
 from simulator.processes.task_runner import TaskRunnerPlug
 from simulator.processes.task_runner import TaskRunner

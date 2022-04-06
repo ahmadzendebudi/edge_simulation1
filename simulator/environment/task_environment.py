@@ -1,5 +1,3 @@
-
-from abc import abstractmethod
 from typing import Sequence
 
 import numpy as np
@@ -7,17 +5,15 @@ from simulator.common import Common
 from simulator.config import Config
 from simulator.core.process import Process
 from simulator.core.simulator import Simulator
-from simulator.core.task import Task
 from simulator.environment.edge_node import EdgeNode
 from simulator.environment.mobile_node import MobileNode
 from simulator.core.environment import Environment
-from simulator.environment.transition_recorder import Transition, TransitionRecorder, TransitionRecorderPlug, TransitionUtil, TwoStepTransitionRecorder
+from simulator.task_multiplexing.selector import TaskMultiplexerSelectorLocal
+from simulator.task_multiplexing.transition_recorder import Transition, TransitionRecorderPlug, TwoStepTransitionRecorder
 
-from tf_agents import trajectories as tj
 from tf_agents import specs
-from simulator.processes.task_multiplexer import TaskMultiplexerSelector, TaskMultiplexerSelectorRandom
 
-from simulator.processes.task_multiplexer_selector_dql import TaskMultiplexerSelectorDql, TaskMultiplexerSelectorDqlPlug
+from simulator.task_multiplexing.selector_dql import TaskMultiplexerSelectorDql
    
 class TaskEnvironment(Environment):
     def __init__(self, edgeNodes: dict[int, EdgeNode], mobileNodes: dict[int, MobileNode]) -> None:
@@ -34,15 +30,15 @@ class TaskEnvironment(Environment):
         for mobileNode in self._mobileNodes:
             mobileNode.initializeConnection(simulator)
         
-        self._mobile_multiplex_dql_selector_plug = TaskMultiplexerSelectorDqlPlug()
-        self._mobile_multiplex_dql_selector_plug.convertStateToTimeStep = self.mobileConvertStateToTimeStep
+        
         self._moblie_multiplex_dql_selector = TaskMultiplexerSelectorDql(
-            self._observationSpec(), self._mobile_multiplex_dql_selector_plug,
-            Config.get("dql_training_buffer_size"))
-        #taskSelectorRandom = TaskMultiplexerSelectorRandom([0])
+            MobileNode.fetchStateShape(), Config.get("dql_training_buffer_size"))
+        
+        #TODO to be replaced
+        taskSelectorLocal = TaskMultiplexerSelectorLocal()
         
         for edgeNode in self._edgeNodes:
-            edgeNode.initializeProcesses(simulator)
+            edgeNode.initializeProcesses(simulator, taskSelectorLocal)
         for mobileNode in self._mobileNodes:
             mobileNode.initializeProcesses(simulator, self._moblie_multiplex_dql_selector)
            # mobileNode.initializeProcesses(simulator, taskSelectorRandom)
@@ -69,15 +65,11 @@ class TaskEnvironment(Environment):
     def _trainTaskSelector(self):
         #Add to buffer
         for transition in self._mobileCompletedTransitionList:
-            self._moblie_multiplex_dql_selector.addToBuffer(TransitionUtil.convertToTfTransition(transition))
+            self._moblie_multiplex_dql_selector.addToBuffer(transition)
         
         #Train
         self._moblie_multiplex_dql_selector.train()
     
-     
-    def mobileConvertStateToTimeStep(self, task: Task, state: Sequence[float]):
-        return TransitionUtil.convertStateToTimeStep(state)
-           
     def edgeNode(self, id: int) -> EdgeNode:
         return self._edgeNodes[id]
     

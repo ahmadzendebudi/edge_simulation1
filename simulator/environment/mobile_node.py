@@ -1,12 +1,9 @@
 from abc import abstractmethod
 from collections import deque
-from inspect import ismethoddescriptor
 from typing import Any, Sequence, Tuple
 
-import numpy as np
 from simulator.common import Common
 from simulator.config import Config
-from simulator.core.node import Node
 from simulator.core.connection import Connection
 from simulator.core.parcel import Parcel
 from simulator.core.parcel_queue import ParcelQueue
@@ -15,11 +12,11 @@ from simulator.core.simulator import Simulator
 from simulator.core.task_queue import TaskQueue
 from simulator.core.task import Task
 from simulator.environment.task_node import TaskNode
-from simulator.environment.transition_recorder import Transition, TransitionRecorder
+from simulator.task_multiplexing.transition_recorder import TransitionRecorder
 from simulator.logger import Logger
 from simulator.processes.task_distributer import TaskDistributer, TaskDistributerPlug
 from simulator.processes.task_generator import TaskGenerator, TaskGeneratorPlug
-from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug, TaskMultiplexerSelector, TaskMultiplexerSelectorLocal, TaskMultiplexerSelectorRandom
+from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug, TaskMultiplexerSelector
 from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTransmitterPlug
 
 class MobileNodePlug:
@@ -83,12 +80,9 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         self._taskGenerator = TaskGenerator(self)
         simulator.registerProcess(self._taskGenerator)
         
-        #TODO random selector should be replaced with DRL selector
-        #multiplex_selector = TaskMultiplexerSelectorRandom([self._edgeConnection.destNode()])
-        #multiplex_selector = TaskMultiplexerSelectorLocal()
         mobileMultiplexSelector = TaskMultiplexerSelectorMobile(
             multiplexSelector, self._edgeConnection.destNode())
-        self._taskMultiplexer = TaskMultiplexer(self, mobileMultiplexSelector)
+        self._taskMultiplexer = TaskMultiplexer(self, mobileMultiplexSelector, self)
         simulator.registerProcess(self._taskMultiplexer)
         self._multiplexQueue = TaskQueue()
         simulator.registerTaskQueue(self._multiplexQueue)
@@ -98,7 +92,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         self._transmitter = ParcelTransmitter(self._simulator, self._transmitQueue, self)
         simulator.registerProcess(self._transmitter)
         
-    
+    #Task Distributer
     def registerTask(self, time: int, processId: int) -> None:
         self._taskDistributionTimeQueue.append(time)
         self._simulator.registerEvent(time, self._taskGenerator.id())
@@ -106,6 +100,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
     def wakeTaskDistributerAt(self, time: int, processId: int) -> None:
         self._simulator.registerEvent(time, self._taskDistributer.id())
     
+    #Task Generator
     def fetchTaskDistributionTimeQueue(self, processId: int) -> deque:
         return self._taskDistributionTimeQueue
     
@@ -117,6 +112,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         self._multiplexQueue.put(task)
         self._simulator.registerEvent(Common.time(), self._taskMultiplexer.id())
     
+    #State handler:
     def fetchState(self, task: Task, processId: int) -> Sequence[float]:
         return self._generateState(task, self._edgeConnection.datarate(), self.currentWorkload(),
                 self._localQueue.qsize(), self._edgeState[0], self._edgeState[1])
@@ -135,6 +131,11 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
                 datarate / (10 ** 6), localWorkload / normalTaskWorkload,
                 localQueueSize, remoteWorkload/normalTaskWorkload, remoteQueueSize]
     
+    @classmethod
+    def fetchStateShape(cls) -> Tuple[int]:
+        return (6,)
+    
+    #Task multiplexer plug:
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:
         return self._multiplexQueue
     
@@ -154,11 +155,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         #approximating the work load in edge by adding the current task to the last state report:
         self._edgeState = [self._edgeState[0] + task.size() * task.workload(), self._edgeState[1] + 1]
     
-    def taskTransitionRecord(self, task: Task, state1, state2, actionObject) -> None:
-        if (self._transitionRecorder != None):
-            transition = Transition(task.id(), state1, state2, actionObject)
-            self._transitionRecorder.put(transition)
-    
+    #Task Runner:
     def taskRunComplete(self, task: Task, processId: int):
         self._taskCompleted(task)
     
@@ -168,12 +165,14 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         if Logger.levelCanLog(2):
             Logger.log("Run Complete: " + str(task), 2)
     
+    #Task Transmitter
     def fetchDestinationConnection(self, processId: int) -> Connection:
         return self._edgeConnection
     
     def parcelTransmissionComplete(self, parcel: Parcel, processId: int) -> int:
         pass #Nothing to do here, I can add a log if needed
     
+    #Node:
     def _receiveParcel(self, parcel: Parcel) -> bool:
         if (parcel.type == Common.PARCEL_TYPE_NODE_STATE):
             content = parcel.content

@@ -1,9 +1,7 @@
 from abc import abstractmethod
-from typing import Sequence, Tuple
-import simulator
+from typing import Any, Sequence, Tuple
 from simulator.common import Common
 from simulator.config import Config
-from simulator.core import Node
 from simulator.core import Connection
 from simulator.core import TaskQueue
 from simulator.core.parcel import Parcel
@@ -13,10 +11,29 @@ from simulator.core.simulator import Simulator
 from simulator.core.task import Task
 from simulator.environment.task_node import TaskNode
 from simulator.logger import Logger
-from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug, TaskMultiplexerSelectorLocal, TaskMultiplexerSelectorRandom
-from simulator.processes.task_runner import TaskRunner, TaskRunnerPlug
+from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug
 from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTransmitterPlug
+from simulator.task_multiplexing.selector import TaskMultiplexerSelector
 
+class TaskMultiplexerSelectorEdge(TaskMultiplexerSelector):
+    #TODO instead of one dest, it should examine which dest has lower load, and offload to that one
+    def __init__(self, innerSelector: TaskMultiplexerSelector, destId: int) -> None:
+        self._innerSelector = innerSelector
+        self._destId = destId
+        super().__init__()
+    
+    def action(self, task: Task, state: Sequence[float]) -> Any:
+        return self._innerSelector.action(task, state)
+    
+    def select(self, action: Any) -> int:
+        selection = self._innerSelector.select(action)
+        if selection == 1:
+            return self._destId
+        elif selection == None or selection == 0:
+            return None
+        else:
+            raise ValueError("output selection: " + str(selection) + " is not supported by this selector")
+            
 class EdgeNodePlug:
     @abstractmethod
     def updateEdgeNodeConnections(self, nodeId: int, nodeExternalId: int) -> Tuple[Sequence[Connection], Sequence[Connection], int]:
@@ -49,17 +66,13 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         if (duration != None):
             self._simulator.registerEvent(Common.time() + duration, self._connectionProcess.id())
         
-    def initializeProcesses(self, simulator: Simulator):
+    def initializeProcesses(self, simulator: Simulator, multiplexSelector: TaskMultiplexerSelector):
         super().initializeProcesses(simulator)
         
-        #TODO -->local selector should be replaced with DRL selector
-        edgeDestNodeIds = []
-        for connection in self._edgeConnections:
-            edgeDestNodeIds.append(connection.destNode())
-        #multiplex_selector = TaskMultiplexerSelectorRandom(edgeDestNodeIds)
-        multiplex_selector = TaskMultiplexerSelectorLocal()
-        #<--
-        self._taskMultiplexer = TaskMultiplexer(self, multiplex_selector)
+        #TODO I should give it the edge with lowest workload and keep it updated (instead of [0])
+        edgeMultiplexSelector = TaskMultiplexerSelectorEdge(
+            multiplexSelector, self._edgeConnections[0].destNode())
+        self._taskMultiplexer = TaskMultiplexer(self, edgeMultiplexSelector, self)
         simulator.registerProcess(self._taskMultiplexer)
         self._multiplexQueue = TaskQueue()
         simulator.registerTaskQueue(self._multiplexQueue)
@@ -126,9 +139,20 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         else:
             raise RuntimeError("Parcel type not supported for edge node")
     
+    #State handler:
     def fetchState(self, task: Task, processId: int) -> Sequence[float]:
         return []#TODO
     
+    
+    def fetchTaskInflatedState(self, task: Task, processId: int) -> Sequence[float]:
+        return []#TODO
+
+    
+    @classmethod
+    def fetchStateShape(cls) -> Tuple[int]:
+        return ()
+    
+    #Task multiplexer
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:
         return self._multiplexQueue
     
@@ -143,10 +167,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         transmitter.transmitQueue().put(parcel)
         self._simulator.registerEvent(Common.time(), transmitter.id())
     
-    def taskTransitionRecord(self, task: Task, state1, state2, selection) -> None:
-        #TODO
-        pass
-    
+    #Task Runner
     def taskRunComplete(self, task: Task, processId: int):
         self._sendTaskResult(task)
     
@@ -157,7 +178,8 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         transmitter = self._transmitterMap[taskSenderNodeId]
         transmitter.transmitQueue().put(parcel)
         self._simulator.registerEvent(Common.time(), transmitter.id())
-        
+    
+    #Task transmission    
     def fetchDestinationConnection(self, processId: int) -> Connection:
         destNodeId = self._transmitterIdToDestNodeIdMap[processId]
         return self._nodeConnectionMap[destNodeId]
