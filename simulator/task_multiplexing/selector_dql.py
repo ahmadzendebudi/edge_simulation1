@@ -38,7 +38,7 @@ class TaskMultiplexerSelectorDql(TaskMultiplexerSelector):
             return None
         else:
             return action
-     
+    
     def addToBuffer(self, transition: Transition):
         tfTransition = TaskMultiplexerSelectorDql._convertToTfTransition(transition)
         self._transitionAgent.addToBuffer(tfTransition)
