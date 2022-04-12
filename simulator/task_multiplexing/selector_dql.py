@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Sequence, Tuple
+from typing import Any, Sequence, Tuple
 from simulator.core.task import Task
 from simulator.dql.transition_agent import TransitionAgent
 from simulator.processes.task_multiplexer import TaskMultiplexerSelector

@@ -3,6 +3,7 @@ from typing import Any, Sequence
 
 import numpy as np
 from simulator.core import Task
+from simulator.task_multiplexing.transition import Transition
 
 class TaskMultiplexerSelector:    
     
@@ -18,13 +19,19 @@ class TaskMultiplexerSelector:
         '''it should return None for local execution, otherwise the id of the destination node'''
         pass
     
+    def addToBuffer(self, transition: Transition) -> None:
+        pass
+    
+    def train(self) -> None:
+        pass
+    
 
 class TaskMultiplexerSelectorRandom(TaskMultiplexerSelector):
-    def __init__(self, destIds: Sequence[int]) -> None:
-        self._destIds = destIds + [None]
+    def __init__(self) -> None:
+        pass
             
     def action(self, task: Task, state: Sequence[float]) -> Any:
-        return np.random.choice(self._destIds)
+        return np.random.randint(0, 2)
     
     def select(self, action: Any) -> int:
         return action
@@ -32,6 +39,14 @@ class TaskMultiplexerSelectorRandom(TaskMultiplexerSelector):
 class TaskMultiplexerSelectorLocal(TaskMultiplexerSelector):
     def action(self, task: Task, state: Sequence[float]) -> int:
         return None
+    
+    def select(self, action: Any) -> int:
+        return action
+    
+
+class TaskMultiplexerSelectorRemote(TaskMultiplexerSelector):
+    def action(self, task: Task, state: Sequence[float]) -> int:
+        return 1
     
     def select(self, action: Any) -> int:
         return action

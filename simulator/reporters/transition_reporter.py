@@ -12,3 +12,6 @@ class TransitionReporter:
     
     def averageDelay(self):
         return sum(map(lambda t: t.delay, self.transitionList))/len(self.transitionList)
+    
+    def averagePowerConsumed(self):
+        return sum(map(lambda t: t.powerConsumed, self.transitionList))/len(self.transitionList)
