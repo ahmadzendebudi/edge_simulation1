@@ -136,27 +136,41 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def fetchState(self, task: Task, processId: int) -> Sequence[float]:
         self._updateDestEdge(task)
         edgeState = self._edgeStatesMap[self._destEdgeId]
+        transmitter = self._transmitterMap[self._destEdgeId]
+        transmitQueue = transmitter.transmitQueue()
         return self._generateState(task, self._nodeConnectionMap[self._destEdgeId].datarate(),
-                self.currentWorkload(), self._localQueue.qsize(), edgeState[0], edgeState[1])
+                self.currentWorkload(), self._localQueue.qsize(),
+                transmitter.remainingTransmitWorkload(),
+                transmitter.remainingTransmitSize(),
+                transmitQueue.qsize(),
+                edgeState[0], edgeState[1])
     
     def fetchTaskInflatedState(self, task: Task, processId: int) -> Sequence[float]:
         self._updateDestEdge(task)
         edgeState = self._edgeStatesMap[self._destEdgeId]
         taskWorkload = task.size() * task.workload()
+        transmitter = self._transmitterMap[self._destEdgeId]
+        transmitQueue = transmitter.transmitQueue()
         return self._generateState(task, self._nodeConnectionMap[self._destEdgeId].datarate(),
                 self.currentWorkload() + taskWorkload, self._localQueue.qsize() + 1,
-                edgeState[0] + taskWorkload, edgeState[1] + 1)
+                transmitter.remainingTransmitWorkload() + taskWorkload,
+                transmitter.remainingTransmitSize() + task.size(),
+                transmitQueue.qsize() + 1,
+                edgeState[0], edgeState[1])
 
     def _generateState(self, task: Task, datarate: int, localWorkload: int, localQueueSize: int,
-                       remoteWorkload: int, remoteQueueSize: int):
+                        localTransferWorkload: int, localTransferSize: int, localTransferQueueSize: int, 
+                        remoteWorkload: int, remoteQueueSize: int):
         normalTaskWorkload = Config.get("task_size_kBit") * Config.get("task_kflops_per_bit") * 10 ** 6
-        return [task.size() * task.workload() / normalTaskWorkload, 
-                datarate / (10 ** 6), localWorkload / normalTaskWorkload,
-                localQueueSize, remoteWorkload/normalTaskWorkload, remoteQueueSize]
+        normalTaskSize = 10 ** 6
+        return [task.size() * task.workload() / normalTaskWorkload, datarate / normalTaskSize,
+                localWorkload / normalTaskWorkload, localQueueSize,
+                localTransferWorkload / normalTaskWorkload, localTransferSize / normalTaskSize, localTransferQueueSize,
+                remoteWorkload/normalTaskWorkload, remoteQueueSize]
         
     @classmethod
     def fetchStateShape(cls) -> Tuple[int]:
-        return (6,)
+        return (9,)
     
     #Task multiplexer
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:
@@ -173,8 +187,9 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         transmitter.transmitQueue().put(parcel)
         self._simulator.registerEvent(Common.time(), transmitter.id())
         #approximating the work load in edge by adding the current task to the last state report of said edge:
-        edgeState = self._edgeStatesMap[self._destEdgeId]
-        self._edgeStatesMap[self._destEdgeId] = [edgeState[0] + task.size() * task.workload(), edgeState[1] + 1]
+        #No longer needed as the transmitter metrics are included in state
+        #edgeState = self._edgeStatesMap[self._destEdgeId]
+        #self._edgeStatesMap[self._destEdgeId] = [edgeState[0] + task.size() * task.workload(), edgeState[1] + 1]
         
     
     #Task Runner
