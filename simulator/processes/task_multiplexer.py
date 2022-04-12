@@ -1,5 +1,6 @@
 
 from abc import abstractmethod
+from simulator.common import Common
 from simulator.core.process import Process
 from simulator.core.task import Task
 from simulator.core.task_queue import TaskQueue
@@ -44,9 +45,11 @@ class TaskMultiplexer(Process):
             selection = self._selector.select(actionObject)
             recordTransition = True
         if selection == None:
+            task.addLog("local run(" + str(Common.time()) + ")")
             self._plug.taskLocalExecution(task, self.id())
         else:
             task.setHopLimit(task.hopLimit() - 1)
+            task.addLog("transmission(" + str(Common.time()) + ")")
             self._plug.taskTransimission(task, self.id(), selection)
         if recordTransition:
             state2 = self._stateHandler.fetchState(task, self.id())

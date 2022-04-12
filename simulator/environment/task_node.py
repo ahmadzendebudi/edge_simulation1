@@ -10,11 +10,13 @@ from simulator.processes.task_runner import TaskRunner, TaskRunnerPlug
 
 class TaskNode(Node, StateHandler, TaskRunnerPlug):
     def __init__(self, externalId: int, flops: int, cores: int, 
-                 transitionRecorder: TwoStepTransitionRecorder = None) -> None:
+                 transitionRecorder: TwoStepTransitionRecorder = None, 
+                 metteredPowerConsumtionPerTFlops: float = 0) -> None:
         super().__init__(externalId)
         self._flops = flops
         self._cores = cores
         self._transitionRecorder = transitionRecorder
+        self._metteredPowerConsumtionPerTFlops = metteredPowerConsumtionPerTFlops
     
     def setTransitionRecorder(self, transitionRecorder: TransitionRecorder):
         self._transitionRecorder = transitionRecorder
@@ -41,7 +43,7 @@ class TaskNode(Node, StateHandler, TaskRunnerPlug):
         simulator.registerTaskQueue(self._localQueue)
         self._taskRunners = []
         for _ in range(0, self._cores):
-            taskRunner = TaskRunner(self, self._flops)
+            taskRunner = TaskRunner(self, self._flops, self._metteredPowerConsumtionPerTFlops)
             simulator.registerProcess(taskRunner)
             self._taskRunners.append(taskRunner)
     

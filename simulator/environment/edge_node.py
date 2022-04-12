@@ -14,29 +14,7 @@ from simulator.logger import Logger
 from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug
 from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTransmitterPlug
 from simulator.task_multiplexing.selector import TaskMultiplexerSelector
-
-class TaskMultiplexerSelectorEdge(TaskMultiplexerSelector):
-    #TODO instead of one dest, it should examine which dest has lower load, and offload to that one
-    def __init__(self, innerSelector: TaskMultiplexerSelector, destId: int) -> None:
-        self._innerSelector = innerSelector
-        self._destId = destId
-        super().__init__()
-    
-    def setDestId(self, id: int):
-        self._destId = id
-    
-    def action(self, task: Task, state: Sequence[float]) -> Any:
-        return self._innerSelector.action(task, state)
-    
-    def select(self, action: Any) -> int:
-        selection = self._innerSelector.select(action)
-        if selection == 1:
-            return self._destId
-        elif selection == None or selection == 0:
-            return None
-        else:
-            raise ValueError("output selection: " + str(selection) + " is not supported by this selector")
-            
+      
 class EdgeNodePlug:
     @abstractmethod
     def updateEdgeNodeConnections(self, nodeId: int, nodeExternalId: int) -> Tuple[Sequence[Connection], Sequence[Connection], int]:
@@ -50,6 +28,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def __init__(self, externalId: int, plug: EdgeNodePlug, flops: int, cores: int) -> None:#TODO in case of multicore, we should have multiple task runners
         self._plug = plug
         self._edgeStatesMap = {}
+        self._destEdgeId = None
         super().__init__(externalId, flops, cores)
     
     def initializeConnection(self, simulator: Simulator):
@@ -73,10 +52,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def initializeProcesses(self, simulator: Simulator, multiplexSelector: TaskMultiplexerSelector):
         super().initializeProcesses(simulator)
         
-        #TODO I should give it the edge with lowest workload and keep it updated (instead of [0])
-        self._edgeMultiplexSelector = TaskMultiplexerSelectorEdge(
-            multiplexSelector, self._edgeConnections[0].destNode())
-        self._taskMultiplexer = TaskMultiplexer(self, self._edgeMultiplexSelector, self)
+        self._taskMultiplexer = TaskMultiplexer(self, multiplexSelector, self)
         simulator.registerProcess(self._taskMultiplexer)
         self._multiplexQueue = TaskQueue()
         simulator.registerTaskQueue(self._multiplexQueue)
@@ -122,6 +98,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
             Logger.log("state transmission edgeId:" + str(self.id()), 3)
             
         content = [self.id(), self.currentWorkload(), self._localQueue.qsize()]
+        Logger.log("edge load: " + str(content), 2)
         size = Config.get("state_parcel_size_per_variable_in_bits") * len(content)
         parcel = Parcel(Common.PARCEL_TYPE_NODE_STATE, size, content, self.id())
         for destId in self._nodeConnectionMap.keys():
@@ -132,40 +109,54 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def _receiveParcel(self, parcel: Parcel) -> bool:
         if parcel.type == Common.PARCEL_TYPE_TASK:
             task = parcel.content
+            task.powerConsumed += parcel.powerConsumed
             self._multiplexQueue.put(task)
             self._simulator.registerEvent(Common.time(), self._taskMultiplexer.id())
             self._taskIdToSenderIdMap[task.id()] = parcel.senderNodeId
         elif parcel.type == Common.PARCEL_TYPE_TASK_RESULT:
             task = parcel.content
-            self._sendTaskResult(task)
+            self._taskResultsArrival(task, True)
         elif parcel.type == Common.PARCEL_TYPE_NODE_STATE:
             content = parcel.content
             self._edgeStatesMap[content[0]] = [content[1], content[2]]
-            self._updateEdgeMultiplexerSelector()
         else:
             raise RuntimeError("Parcel type not supported for edge node")
+            
+    #State handler:
     
-    def _updateEdgeMultiplexerSelector(self):
+    def _updateDestEdge(self, task: Task):
         destId = None
         minWorkload = None
         for id, value in self._edgeStatesMap.items():
             if minWorkload == None or minWorkload > value[0]:
                 destId = id
-        if destId != None:
-            self._edgeMultiplexSelector.setDestId(destId)
-            
-    #State handler:
-    def fetchState(self, task: Task, processId: int) -> Sequence[float]:
-        return []#TODO
+        self._destEdgeId = destId
+        #TODO Instead of workload, it should be updated whenever state is fetched
     
+    def fetchState(self, task: Task, processId: int) -> Sequence[float]:
+        self._updateDestEdge(task)
+        edgeState = self._edgeStatesMap[self._destEdgeId]
+        return self._generateState(task, self._nodeConnectionMap[self._destEdgeId].datarate(),
+                self.currentWorkload(), self._localQueue.qsize(), edgeState[0], edgeState[1])
     
     def fetchTaskInflatedState(self, task: Task, processId: int) -> Sequence[float]:
-        return []#TODO
+        self._updateDestEdge(task)
+        edgeState = self._edgeStatesMap[self._destEdgeId]
+        taskWorkload = task.size() * task.workload()
+        return self._generateState(task, self._nodeConnectionMap[self._destEdgeId].datarate(),
+                self.currentWorkload() + taskWorkload, self._localQueue.qsize() + 1,
+                edgeState[0] + taskWorkload, edgeState[1] + 1)
 
-    
+    def _generateState(self, task: Task, datarate: int, localWorkload: int, localQueueSize: int,
+                       remoteWorkload: int, remoteQueueSize: int):
+        normalTaskWorkload = Config.get("task_size_kBit") * Config.get("task_kflops_per_bit") * 10 ** 6
+        return [task.size() * task.workload() / normalTaskWorkload, 
+                datarate / (10 ** 6), localWorkload / normalTaskWorkload,
+                localQueueSize, remoteWorkload/normalTaskWorkload, remoteQueueSize]
+        
     @classmethod
     def fetchStateShape(cls) -> Tuple[int]:
-        return ()
+        return (6,)
     
     #Task multiplexer
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:
@@ -177,16 +168,25 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
             self._simulator.registerEvent(Common.time(), taskRunner.id())
     
     def taskTransimission(self, task: Task, processId: int, destinationId: int) -> None:
-        transmitter = self._transmitterMap[destinationId]
-        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id)
+        transmitter = self._transmitterMap[self._destEdgeId]
+        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id, task.size() * task.workload())
         transmitter.transmitQueue().put(parcel)
         self._simulator.registerEvent(Common.time(), transmitter.id())
+        #approximating the work load in edge by adding the current task to the last state report of said edge:
+        edgeState = self._edgeStatesMap[self._destEdgeId]
+        self._edgeStatesMap[self._destEdgeId] = [edgeState[0] + task.size() * task.workload(), edgeState[1] + 1]
+        
     
     #Task Runner
     def taskRunComplete(self, task: Task, processId: int):
-        self._sendTaskResult(task)
+        recordTransitionCompletion = task.hopLimit == 1
+        self._taskResultsArrival(task, recordTransitionCompletion)
     
-    def _sendTaskResult(self, task: Task):
+    def _taskResultsArrival(self, task: Task, recordTransitionCompletion = False):
+        if recordTransitionCompletion: #TODO dql selector should be unique to each edge, to be implemented
+            delay = Common.time() - task.arrivalTime()
+            self._transitionRecorder.completeTransition(task.id(), delay, task.powerConsumed)
+        
         taskSenderNodeId = self._taskIdToSenderIdMap.pop(task.id())
         size = Config.get("task_result_parcel_size_in_bits")
         parcel = Parcel(Common.PARCEL_TYPE_TASK_RESULT, size, task, self.id())

@@ -47,10 +47,10 @@ class TaskMultiplexerSelectorMobile(TaskMultiplexerSelector):
             
 class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int, 
-                 transitionRecorder: TransitionRecorder = None) -> None:#TODO a parameter for cpu cycles per second
+                 transitionRecorder: TransitionRecorder = None, metteredPowerConsumtionPerTFlops: float = 0) -> None:#TODO a parameter for cpu cycles per second
         self._plug = plug
         self._edgeState = [0, 0]
-        super().__init__(externalId, flops, cores, transitionRecorder)
+        super().__init__(externalId, flops, cores, transitionRecorder, metteredPowerConsumtionPerTFlops)
     
     def edgeConnection(self) -> Connection:
         self._edgeConnection
@@ -114,26 +114,36 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
     
     #State handler:
     def fetchState(self, task: Task, processId: int) -> Sequence[float]:
-        return self._generateState(task, self._edgeConnection.datarate(), self.currentWorkload(),
-                self._localQueue.qsize(), self._edgeState[0], self._edgeState[1])
+        return self._generateState(task, self._edgeConnection.datarate(), 
+                self.currentWorkload(), self._localQueue.qsize(),
+                self._transmitter.remainingTransmitWorkload(),
+                self._transmitter.remainingTransmitSize(),
+                self._transmitQueue.qsize(),
+                self._edgeState[0], self._edgeState[1])
     
     
     def fetchTaskInflatedState(self, task: Task, processId: int) -> Sequence[float]:
         taskWorkload = task.size() * task.workload()
         return self._generateState(task, self._edgeConnection.datarate(),
                 self.currentWorkload() + taskWorkload, self._localQueue.qsize() + 1,
-                self._edgeState[0] + taskWorkload, self._edgeState[1] + 1)
+                self._transmitter.remainingTransmitWorkload() + taskWorkload,
+                self._transmitter.remainingTransmitSize() + task.size(),
+                self._transmitQueue.qsize() + 1,
+                self._edgeState[0], self._edgeState[1])
     
     def _generateState(self, task: Task, datarate: int, localWorkload: int, localQueueSize: int,
-                       remoteWorkload: int, remoteQueueSize: int):
+                        localTransferWorkload: int, localTransferSize: int, localTransferQueueSize: int, 
+                        remoteWorkload: int, remoteQueueSize: int):
         normalTaskWorkload = Config.get("task_size_kBit") * Config.get("task_kflops_per_bit") * 10 ** 6
-        return [task.size() * task.workload() / normalTaskWorkload, 
-                datarate / (10 ** 6), localWorkload / normalTaskWorkload,
-                localQueueSize, remoteWorkload/normalTaskWorkload, remoteQueueSize]
+        normalTaskSize = 10 ** 6
+        return [task.size() * task.workload() / normalTaskWorkload, datarate / normalTaskSize,
+                localWorkload / normalTaskWorkload, localQueueSize,
+                localTransferWorkload / normalTaskWorkload, localTransferSize / normalTaskSize, localTransferQueueSize,
+                remoteWorkload/normalTaskWorkload, remoteQueueSize]
     
     @classmethod
     def fetchStateShape(cls) -> Tuple[int]:
-        return (6,)
+        return (9,)
     
     #Task multiplexer plug:
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:
@@ -149,11 +159,12 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
             raise ValueError("destination ids do not match, something most have gone wrong" +
                              "received dest id:" + str(destinationId) + ", mobile node dest id" +
                              str(self._edgeConnection.destNode()))
-        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id)
+        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id, task.size() * task.workload())
         self._transmitter.transmitQueue().put(parcel)
         self._simulator.registerEvent(Common.time(), self._transmitter.id())
         #approximating the work load in edge by adding the current task to the last state report:
-        self._edgeState = [self._edgeState[0] + task.size() * task.workload(), self._edgeState[1] + 1]
+        #no longer needed, as the task will either be in run queue or transmit queue and both are used for state
+        #self._edgeState = [self._edgeState[0] + task.size() * task.workload(), self._edgeState[1] + 1]
     
     #Task Runner:
     def taskRunComplete(self, task: Task, processId: int):
@@ -161,7 +172,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
     
     def _taskCompleted(self, task: Task) -> None:
         delay = Common.time() - task.arrivalTime()
-        self._transitionRecorder.completeTransition(task.id(), delay)
+        self._transitionRecorder.completeTransition(task.id(), delay, task.powerConsumed)
         if Logger.levelCanLog(2):
             Logger.log("Run Complete: " + str(task), 2)
     
@@ -187,6 +198,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
                 Logger.log("mobile node received a state update parcel from an edge which it is not connected to", 1)
         elif (parcel.type == Common.PARCEL_TYPE_TASK_RESULT):
             task = parcel.content
+            task.powerConsumed += parcel.powerConsumed
             if (task.nodeId() != self.id()):
                 raise ValueError("Mobile node (id: " + str(self.id()) +
                                  ") received task result belonging to another mobile node with id:" + str(task.nodeId()))

@@ -20,6 +20,9 @@ class ParcelQueue:
     
     def get(self) -> Parcel:
         return self._queue.popleft()
+    
+    def deque(self) -> deque:
+        return self._queue
 
     
     

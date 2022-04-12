@@ -30,14 +30,15 @@ class BoxWorld(EdgeNodePlug, MobileNodePlug):
             device["location"] = location 
             self._edgeNodes.append(device["node"])
             self._edgeDevices[id] = device
-            
+        
+        mobileWattsPerTFlops=Config.get("mobile_watts_per_tflop")
         for location in mobileNodesLocation:
             id += 1
             device = {}
             device["id"] = id
             flops = self._mobile_cpu_core_tflops * (10 ** 12)
             cores = self._mobile_cpu_cores
-            device["node"] = MobileNode(id, self, flops, cores)
+            device["node"] = MobileNode(id, self, flops, cores, metteredPowerConsumtionPerTFlops=mobileWattsPerTFlops)
             device["location"] = location 
             self._mobileNodes.append(device["node"])
             self._mobileDevices[id] = device
@@ -109,11 +110,12 @@ class BoxWorld(EdgeNodePlug, MobileNodePlug):
             datarate = self._sampleEdgeToEdgeDataRate(senderEdgeDevice, receiverEdgeDevice, 4)#TODO modulation should be set properly
             edgeConnections.append(Connection(nodeId, receiverEdgeNodeId, datarate))
         
+        powerConsumption = Config.get("mobile_transmit_power_watts")
         for mobileDeviceId in senderEdgeDevice["connectionsMobileId"]:
             receiverMobileDevice = self._mobileDevices[mobileDeviceId]
             receiverMobileNodeId = receiverMobileDevice["node"].id()
             datarate = self._sampleEdgeToMobileDataRate(senderEdgeDevice, receiverMobileDevice, 100)#TODO modulation should be set properly
-            mobileConnections.append(Connection(nodeId, receiverMobileNodeId, datarate))
+            mobileConnections.append(Connection(nodeId, receiverMobileNodeId, datarate, powerConsumption))
             
         return (edgeConnections, mobileConnections, None)
         
@@ -123,7 +125,8 @@ class BoxWorld(EdgeNodePlug, MobileNodePlug):
         edgeDeviceId = mobileDevice["connectionEdgeId"]
         edgeDevice = self._edgeDevices[edgeDeviceId]
         datarate = self._sampleMobileToEdgeDataRate(mobileDevice, edgeDevice, 100)#TODO modulation should be set properly
-        return (Connection(nodeId, edgeDevice["node"].id(), datarate), None)
+        powerConsumption = Config.get("mobile_transmit_power_watts")
+        return (Connection(nodeId, edgeDevice["node"].id(), datarate, powerConsumption), None)
     
     def _sampleEdgeToEdgeDataRate(self, transmtterDevice, receiverDevice, modulationChannels) -> int: #TODO modulation should also be taken into account 
         return self._sampleDeviceToDeviceDataRate(transmtterDevice, self._edge_gain_dBi, self._edge_transmit_power_watts,

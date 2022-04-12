@@ -38,9 +38,10 @@ class TwoStepTransitionRecorder(TransitionRecorder):
             raise RuntimeError("A transition with the same task id already exists")
         self._transitionMap[transition.taskId] = transition
 
-    def completeTransition(self, taskId: int, delay: float):
+    def completeTransition(self, taskId: int, delay: float, powerConsumed: float):
         transition = self._transitionMap[taskId]
-        transition.delay = delay 
+        transition.delay = delay
+        transition.powerConsumed = powerConsumed
         transition.completed = True
         self._completedTransitionCount += 1
         if (self._completedTransitionCount >= self._completedTransitionLimit):

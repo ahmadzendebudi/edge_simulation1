@@ -5,6 +5,8 @@ class Task:
         self._nodeId = nodeId
         self._arrivalTime = arrivalTime
         self._hopLimit = hopLimit
+        self._log = []
+        self.powerConsumed = 0
     
     def setup(self, id: int) -> None:
         self._id = id
@@ -24,7 +26,11 @@ class Task:
     def setHopLimit(self, hopLimit):
         self._hopLimit = hopLimit
     
+    def addLog(self, text: str):
+        self._log.append(text)
+    
     def __str__(self) -> str:
         return ("Task//id:" + str(self._id) + " size:" + str(self._size) +
                 " workload:" + str(self._workload) + " nodeId:" + str(self._nodeId) +
-                " arrivalTime:" + str(self._arrivalTime) + " hopLimit:" + str(self._hopLimit))
+                " arrivalTime:" + str(self._arrivalTime) + " hopLimit:" + str(self._hopLimit) +
+                " powerConsumed:" + str(self.powerConsumed) + " log:" + str(self._log))
