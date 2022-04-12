@@ -1,12 +1,17 @@
 
-from typing import Sequence, Tuple
+from typing import Callable, Sequence, Tuple
 import numpy as np
 from simulator.config import Config
 from simulator.core.connection import Connection
+from simulator.core.task import Task
 from simulator.environment.edge_node import EdgeNode, EdgeNodePlug
 from simulator.environment.mobile_node import MobileNode, MobileNodePlug
+from simulator.task_multiplexing.transition import Transition
 
 class BoxWorld(EdgeNodePlug, MobileNodePlug):
+    delay_coefficient = Config.get("delay_coefficient")
+    power_coefficient = Config.get("power_coefficient")
+    
     def build(self) -> Tuple[Sequence[EdgeNode], Sequence[MobileNode]]:
         self._loadConfig()
         edgeNodesLocation = [[25, 25], [75, 25], [75, 75], [25, 75]]
@@ -38,7 +43,8 @@ class BoxWorld(EdgeNodePlug, MobileNodePlug):
             device["id"] = id
             flops = self._mobile_cpu_core_tflops * (10 ** 12)
             cores = self._mobile_cpu_cores
-            device["node"] = MobileNode(id, self, flops, cores, metteredPowerConsumtionPerTFlops=mobileWattsPerTFlops)
+            device["node"] = MobileNode(id, self, flops, cores,
+                                        metteredPowerConsumtionPerTFlops=mobileWattsPerTFlops)
             device["location"] = location 
             self._mobileNodes.append(device["node"])
             self._mobileDevices[id] = device
@@ -46,6 +52,12 @@ class BoxWorld(EdgeNodePlug, MobileNodePlug):
         self.setupConnections()
         
         return (self._edgeNodes, self._mobileNodes)
+    
+    def defaultRewards(self):
+        edgeRewardFunction: Callable[[Transition], float] = lambda transition: - BoxWorld.delay_coefficient * transition.delay
+        mobileRewardFunction: Callable[[Transition], float] = (lambda transition: - BoxWorld.delay_coefficient * transition.delay
+                                                         - BoxWorld.power_coefficient * transition.powerConsumed)
+        return (edgeRewardFunction, mobileRewardFunction)
         
     def _loadConfig(self):
         self._mobile_transmit_power_watts = Config.get("mobile_transmit_power_watts")

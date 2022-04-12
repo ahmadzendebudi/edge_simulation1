@@ -1,6 +1,7 @@
 import json
 
 class Config:
+    
     @classmethod
     def _initConfig(cls):
         with open("simulator/config.json", "r") as read_file:

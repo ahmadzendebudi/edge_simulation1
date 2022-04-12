@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Sequence, Tuple
+from typing import Any, Callable, Sequence, Tuple
 from simulator.common import Common
 from simulator.config import Config
 from simulator.core import Connection
@@ -25,7 +25,7 @@ class EdgeNodePlug:
         pass
     
 class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
-    def __init__(self, externalId: int, plug: EdgeNodePlug, flops: int, cores: int) -> None:#TODO in case of multicore, we should have multiple task runners
+    def __init__(self, externalId: int, plug: EdgeNodePlug, flops: int, cores: int) -> None:
         self._plug = plug
         self._edgeStatesMap = {}
         self._destEdgeId = None
@@ -163,14 +163,15 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
                         remoteWorkload: int, remoteQueueSize: int):
         normalTaskWorkload = Config.get("task_size_kBit") * Config.get("task_kflops_per_bit") * 10 ** 6
         normalTaskSize = 10 ** 6
-        return [task.size() * task.workload() / normalTaskWorkload, datarate / normalTaskSize,
+        return [task.size() * task.workload() / normalTaskWorkload, Common.time() - task.arrivalTime(),
+                datarate / normalTaskSize,
                 localWorkload / normalTaskWorkload, localQueueSize,
                 localTransferWorkload / normalTaskWorkload, localTransferSize / normalTaskSize, localTransferQueueSize,
                 remoteWorkload/normalTaskWorkload, remoteQueueSize]
         
     @classmethod
     def fetchStateShape(cls) -> Tuple[int]:
-        return (9,)
+        return (10,)
     
     #Task multiplexer
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:

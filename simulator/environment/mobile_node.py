@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from collections import deque
-from typing import Any, Sequence, Tuple
+from typing import Any, Callable, Sequence, Tuple
 
 from simulator.common import Common
 from simulator.config import Config
@@ -46,11 +46,11 @@ class TaskMultiplexerSelectorMobile(TaskMultiplexerSelector):
             
             
 class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug, ParcelTransmitterPlug):
-    def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int, 
-                 transitionRecorder: TransitionRecorder = None, metteredPowerConsumtionPerTFlops: float = 0) -> None:#TODO a parameter for cpu cycles per second
+    def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int,
+                 metteredPowerConsumtionPerTFlops: float = 0) -> None:
         self._plug = plug
         self._edgeState = [0, 0]
-        super().__init__(externalId, flops, cores, transitionRecorder, metteredPowerConsumtionPerTFlops)
+        super().__init__(externalId, flops, cores, metteredPowerConsumtionPerTFlops)
     
     def edgeConnection(self) -> Connection:
         self._edgeConnection

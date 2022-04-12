@@ -6,7 +6,9 @@ class Task:
         self._arrivalTime = arrivalTime
         self._hopLimit = hopLimit
         self._log = []
-        self.powerConsumed = 0
+        
+        self.completionTime = None
+        self.powerConsumed = 0.0
     
     def setup(self, id: int) -> None:
         self._id = id
@@ -28,6 +30,10 @@ class Task:
     
     def addLog(self, text: str):
         self._log.append(text)
+    
+    def delay(self) -> float:
+        return self.completionTime - self.arrivalTime
+    
     
     def __str__(self) -> str:
         return ("Task//id:" + str(self._id) + " size:" + str(self._size) +

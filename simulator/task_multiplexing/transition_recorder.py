@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Sequence
+from typing import Any, Callable, Collection, Sequence
 
 from simulator.task_multiplexing.transition import Transition
 
@@ -27,10 +27,12 @@ class TransitionRecorder:
         pass
 
 class TwoStepTransitionRecorder(TransitionRecorder):
-    def __init__(self, plug: TransitionRecorderPlug, completedTransitionLimit: int) -> None:
+    def __init__(self, plug: TransitionRecorderPlug, completedTransitionLimit: int,
+                 transitionWatchers: Collection[Callable[[Transition], Any]] = []) -> None:
         self._transitionMap = {}
         self._completedTransitionCount = 0
         self._completedTransitionLimit = completedTransitionLimit
+        self._transitionWatchers = transitionWatchers
         super().__init__(plug)
     
     def put(self, transition: Transition):
@@ -44,6 +46,10 @@ class TwoStepTransitionRecorder(TransitionRecorder):
         transition.powerConsumed = powerConsumed
         transition.completed = True
         self._completedTransitionCount += 1
+        
+        for transitionWatcher in self._transitionWatchers:
+            transitionWatcher(transition)
+            
         if (self._completedTransitionCount >= self._completedTransitionLimit):
             self._plug.transitionRecorderLimitReached(self.popCompleted())
         

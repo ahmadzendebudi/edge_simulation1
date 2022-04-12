@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from typing import Callable
 from simulator.core import Node
 from simulator.core import TaskQueue
 from simulator.core.simulator import Simulator
@@ -10,16 +11,18 @@ from simulator.processes.task_runner import TaskRunner, TaskRunnerPlug
 
 class TaskNode(Node, StateHandler, TaskRunnerPlug):
     def __init__(self, externalId: int, flops: int, cores: int, 
-                 transitionRecorder: TwoStepTransitionRecorder = None, 
                  metteredPowerConsumtionPerTFlops: float = 0) -> None:
         super().__init__(externalId)
         self._flops = flops
         self._cores = cores
-        self._transitionRecorder = transitionRecorder
         self._metteredPowerConsumtionPerTFlops = metteredPowerConsumtionPerTFlops
     
     def setTransitionRecorder(self, transitionRecorder: TransitionRecorder):
         self._transitionRecorder = transitionRecorder
+    
+    def setRewardFunction(self, rewardFunction: Callable[[Transition], float]):
+        '''rewardFunction: (transition) -> reward'''
+        self._rewardFunction = rewardFunction
     
     def currentWorkload(self):
         workload = TaskRunner.remainingWorkloadTaskQueue(self._localQueue)
@@ -49,6 +52,8 @@ class TaskNode(Node, StateHandler, TaskRunnerPlug):
     
     def recordTransition(self, task: Task, state1, state2, actionObject) -> None:
         if (self._transitionRecorder != None):
-            transition = Transition(task.id(), state1, state2, actionObject)
+            if (self._rewardFunction == None):
+                raise ValueError("transition recorder is provided while reward function is None")
+            transition = Transition(task.id(), self._rewardFunction, state1, state2, actionObject)
             self._transitionRecorder.put(transition)
     

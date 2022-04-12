@@ -14,8 +14,9 @@ if True:
     
     world = BoxWorld()
     edgeNodes, mobileNodes = world.build()
-
-    taskEnvironment = TaskEnvironment(edgeNodes, mobileNodes)
+    edgeReward, mobileReward = world.defaultRewards()
+    
+    taskEnvironment = TaskEnvironment(edgeNodes, mobileNodes, edgeReward, mobileReward)
     simulator = Simulator()
     taskEnvironment.initialize(simulator)
     simulator.run()

@@ -1,10 +1,11 @@
-from typing import Sequence
+from typing import Any, Callable, Collection, Sequence
 
 import numpy as np
 from simulator.common import Common
 from simulator.config import Config
 from simulator.core.process import Process
 from simulator.core.simulator import Simulator
+from simulator.core.task import Task
 from simulator.environment.edge_node import EdgeNode
 from simulator.environment.mobile_node import MobileNode
 from simulator.core.environment import Environment
@@ -16,11 +17,17 @@ from tf_agents import specs
 from simulator.task_multiplexing.selector_dql import TaskMultiplexerSelectorDql
    
 class TaskEnvironment(Environment):
-    def __init__(self, edgeNodes: dict[int, EdgeNode], mobileNodes: dict[int, MobileNode]) -> None:
+    def __init__(self, edgeNodes: dict[int, EdgeNode], mobileNodes: dict[int, MobileNode], 
+                 edgeRewardFunction: Callable[[Transition], float] = None,
+                 mobileRewardFunction: Callable[[Transition], float] = None) -> None:
         self._edgeNodes = edgeNodes
         self._mobileNodes = mobileNodes
+        self._edgeRewardFunction = edgeRewardFunction
+        self._mobileRewardFunction = mobileRewardFunction
     
-    def initialize(self, simulator: Simulator) -> None:
+    def initialize(self, simulator: Simulator, 
+                   mobileTransitionWatchers: Collection[Callable[[Transition], Any]] = [],
+                   edgeTransitionWatchers: Collection[Callable[[Transition], Any]] = []) -> None:
         self._simulator = simulator
         for node in self._edgeNodes + self._mobileNodes:
             simulator.registerNode(node)
@@ -50,9 +57,11 @@ class TaskEnvironment(Environment):
         #TODO For now, all nodes magically share transition history
         transitionPlug = TransitionRecorderPlug()
         transitionPlug.transitionRecorderLimitReached = self._mobileTransitionRecorderLimitReached
-        transitionRecorder = TwoStepTransitionRecorder(transitionPlug, Config.get("dql_training_interval"))
+        transitionRecorder = TwoStepTransitionRecorder(transitionPlug, Config.get("dql_training_interval"),
+                                                       mobileTransitionWatchers)
         for mobileNode in self._mobileNodes:
             mobileNode.setTransitionRecorder(transitionRecorder)
+            mobileNode.setRewardFunction(self._mobileRewardFunction)
             
         self._edgeTaskSelectorProcess = Process()
         self._edgeTaskSelectorProcess.wake = self._trainEdgeTaskSelector
@@ -61,9 +70,11 @@ class TaskEnvironment(Environment):
         #TODO For now, all nodes magically share transition history
         transitionPlug = TransitionRecorderPlug()
         transitionPlug.transitionRecorderLimitReached = self._edgeTransitionRecorderLimitReached
-        transitionRecorder = TwoStepTransitionRecorder(transitionPlug, Config.get("dql_training_interval"))
+        transitionRecorder = TwoStepTransitionRecorder(transitionPlug, Config.get("dql_training_interval"),
+                                                       edgeTransitionWatchers)
         for edgeNode in self._edgeNodes:
             edgeNode.setTransitionRecorder(transitionRecorder)
+            edgeNode.setRewardFunction(self._edgeRewardFunction)
     
     def _mobileTransitionRecorderLimitReached(self, completedTransitions: Sequence[Transition]):
         self._mobileCompletedTransitionList = completedTransitions
