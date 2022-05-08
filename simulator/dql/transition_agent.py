@@ -98,6 +98,7 @@ class TransitionAgent:
         # with `num_actions` units to generate one q_value per available action as
         # its output.
         dense_layers = [dense_layer(num_units) for num_units in fc_layer_params]
+        #dropout_layer = tf.keras.layers.Dropout(0.8)
         q_values_layer = tf.keras.layers.Dense(
             num_actions,
             activation=None)
