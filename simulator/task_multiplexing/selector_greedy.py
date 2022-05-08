@@ -6,8 +6,8 @@ from simulator.task_multiplexing.selector import TaskMultiplexerSelector
 
 
 class TaskMultiplexerSelectorGreedy(TaskMultiplexerSelector):
-    def __init__(self, isMobile = True) -> None:
-        if (isMobile):
+    def __init__(self, state) -> None:
+        if (state == (9,)):
             self._localFlops = Config.get("mobile_cpu_core_tflops") * 10 ** 12
             self._localCores = Config.get("mobile_cpu_cores")
             self._remoteFlops = Config.get("edge_cpu_core_tflops") * 10 ** 12
