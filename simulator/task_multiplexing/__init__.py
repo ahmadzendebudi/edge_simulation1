@@ -8,4 +8,5 @@ from simulator.task_multiplexing.selector import TaskMultiplexerSelectorLocal
 from simulator.task_multiplexing.selector import TaskMultiplexerSelectorRandom
 from simulator.task_multiplexing.selector import TaskMultiplexerSelectorRemote
 from simulator.task_multiplexing.selector_dql import TaskMultiplexerSelectorDql
+from simulator.task_multiplexing.selector_greedy import TaskMultiplexerSelectorGreedy
 from simulator.task_multiplexing.state_handler import StateHandler

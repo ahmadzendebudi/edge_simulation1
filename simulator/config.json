@@ -1,5 +1,5 @@
 {
-    "task_generation_duration": 200,
+    "task_generation_duration": 100,
     "node_state_transmission_interval": 1,
     "task_generator_prefetch_time": 50,
     "task_generator_lambda": 0.5,
