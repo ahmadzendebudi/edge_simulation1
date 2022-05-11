@@ -136,14 +136,14 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
                         remoteWorkload: int, remoteQueueSize: int):
         normalTaskWorkload = Config.get("task_size_kBit") * Config.get("task_kflops_per_bit") * 10 ** 6
         normalTaskSize = 10 ** 6
-        return [task.size() * task.workload() / normalTaskWorkload, datarate / normalTaskSize,
+        return [task.size() / normalTaskSize, task.size() * task.workload() / normalTaskWorkload, datarate / normalTaskSize,
                 localWorkload / normalTaskWorkload, localQueueSize,
                 localTransferWorkload / normalTaskWorkload, localTransferSize / normalTaskSize, localTransferQueueSize,
                 remoteWorkload/normalTaskWorkload, remoteQueueSize]
     
     @classmethod
     def fetchStateShape(cls) -> Tuple[int]:
-        return (9,)
+        return (10,)
     
     #Task multiplexer plug:
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:

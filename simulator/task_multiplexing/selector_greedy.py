@@ -7,30 +7,30 @@ from simulator.task_multiplexing.selector import TaskMultiplexerSelector
 
 class TaskMultiplexerSelectorGreedy(TaskMultiplexerSelector):
     def __init__(self, state) -> None:
-        if (state == (9,)):
+        if (state == (10,)):
             self._localFlops = Config.get("mobile_cpu_core_tflops") * 10 ** 12
             self._localCores = Config.get("mobile_cpu_cores")
             self._remoteFlops = Config.get("edge_cpu_core_tflops") * 10 ** 12
             self._remoteCores = Config.get("edge_cpu_cores")
             
-            self._taskWorkloadIndex = 0
-            self._dataRateIndex = 1
-            self._localWorkloadIndex = 2
-            self._localTransferWorkloadIndex = 4
-            self._localTransferSizeIndex = 5
-            self._remoteWorkloadIndex = 7
+            self._taskWorkloadIndex = 1
+            self._dataRateIndex = 2
+            self._localWorkloadIndex = 3
+            self._localTransferWorkloadIndex = 5
+            self._localTransferSizeIndex = 6
+            self._remoteWorkloadIndex = 8
         else:
             self._localFlops = Config.get("edge_cpu_core_tflops") * 10 ** 12
             self._localCores = Config.get("edge_cpu_cores")
             self._remoteFlops = Config.get("edge_cpu_core_tflops") * 10 ** 12
             self._remoteCores = Config.get("edge_cpu_cores")
             
-            self._taskWorkloadIndex = 0
-            self._dataRateIndex = 2
-            self._localWorkloadIndex = 3
-            self._localTransferWorkloadIndex = 5
-            self._localTransferSizeIndex = 6
-            self._remoteWorkloadIndex = 8
+            self._taskWorkloadIndex = 2
+            self._dataRateIndex = 3
+            self._localWorkloadIndex = 4
+            self._localTransferWorkloadIndex = 6
+            self._localTransferSizeIndex = 7
+            self._remoteWorkloadIndex = 9
         self._normalTaskWorkload = Config.get("task_size_kBit") * Config.get("task_kflops_per_bit") * 10 ** 6
         self._delayCoefficient = Config.get("delay_coefficient")
         self._powerCoefficient = Config.get("power_coefficient")

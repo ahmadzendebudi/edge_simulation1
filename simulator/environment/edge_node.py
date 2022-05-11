@@ -163,7 +163,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
                         remoteWorkload: int, remoteQueueSize: int):
         normalTaskWorkload = Config.get("task_size_kBit") * Config.get("task_kflops_per_bit") * 10 ** 6
         normalTaskSize = 10 ** 6
-        return [task.size() * task.workload() / normalTaskWorkload, Common.time() - task.arrivalTime(),
+        return [task.size() / normalTaskSize, task.size() * task.workload() / normalTaskWorkload, Common.time() - task.arrivalTime(),
                 datarate / normalTaskSize,
                 localWorkload / normalTaskWorkload, localQueueSize,
                 localTransferWorkload / normalTaskWorkload, localTransferSize / normalTaskSize, localTransferQueueSize,
@@ -171,7 +171,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         
     @classmethod
     def fetchStateShape(cls) -> Tuple[int]:
-        return (10,)
+        return (11,)
     
     #Task multiplexer
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:

@@ -39,5 +39,5 @@
     "dql_learning_discount": 0.0,
 
     "delay_coefficient": 1,
-    "power_coefficient": 3
+    "power_coefficient": 0
 }
