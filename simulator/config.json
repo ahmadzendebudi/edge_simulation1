@@ -3,16 +3,18 @@
     "node_state_transmission_interval": 1,
     "task_generator_prefetch_time": 50,
     "task_generator_lambda": 0.5,
-    "task_size_kBit": 2500,
-    "task_size_sd_kBit": 1000,
-    "task_size_min_kBit": 1000,
-    "task_kflops_per_bit": 750,
-    "task_kflops_per_bit_sd": 150,
-    "task_kflops_per_bit_min": 150,
+    "task_size_kBit": 1000,
+    "task_size_sd_kBit": 500,
+    "task_size_min_kBit": 500,
+    "task_kflops_per_bit": 3000,
+    "task_kflops_per_bit_sd": 500,
+    "task_kflops_per_bit_min": 500,
     "random_seed": 9578337,
     "initial_unique_id": 1,
     "state_parcel_size_per_variable_in_bits": 64,
     "task_result_parcel_size_in_bits": 1024,
+    "connection_actual_datarate_low": 0.5,
+    "connection_actual_datarate_high": 1.5,
 
     "mobile_watts_per_tflop": 0.5,
     "mobile_transmit_power_watts": 0.04,
@@ -25,8 +27,8 @@
     "gaussain_noise_sd_dBm": -10,
     "mobile_cpu_core_tflops": 1,
     "mobile_cpu_cores": 1,
-    "edge_cpu_core_tflops": 3,
-    "edge_cpu_cores": 4,
+    "edge_cpu_core_tflops": 5,
+    "edge_cpu_cores": 12,
 
     "#debug_level": "debug level -1:No debug, 0: must show only, 1:breif debug, 2: medium debug, 3: extensive debug",
     "debug_level": 2,
@@ -39,5 +41,5 @@
     "dql_learning_discount": 0.0,
 
     "delay_coefficient": 1,
-    "power_coefficient": 0
+    "power_coefficient": 1
 }

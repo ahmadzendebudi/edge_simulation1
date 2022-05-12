@@ -1,11 +1,14 @@
 
+
 from abc import abstractmethod
+import numpy as np
 from simulator.common import Common
 from simulator.core.connection import Connection
 from simulator.core.parcel import Parcel
 from simulator.core.parcel_queue import ParcelQueue
 from simulator.core.process import Process
 from simulator.core.simulator import Simulator
+from simulator import Config
 
 class ParcelTransmitterPlug:
     
@@ -23,6 +26,7 @@ class ParcelTransmitter(Process):
         self._plug = plug
         self._liveParcel = None
         self._liveParcelCompletionTime = None
+        self._liveParcelTransmitDuration = None
         self._simulator = simulator
         self._queue = queue
     
@@ -37,6 +41,7 @@ class ParcelTransmitter(Process):
             self._plug.parcelTransmissionComplete(self._liveParcel, self._id)
             self._liveParcel = None
             self._liveParcelCompletionTime = None
+            self._liveParcelTransmitDuration = None
         
         if (self._liveParcel == None):
             if self._queue.qsize() > 0:
@@ -46,16 +51,20 @@ class ParcelTransmitter(Process):
     def _transmitParcel(self, Parcel: Parcel):
         self._liveParcel = Parcel
         connection = self._plug.fetchDestinationConnection(self._id)
-        duration = Parcel.size / connection.datarate()
-        self._liveParcelCompletionTime = Common.time() + duration
-        self._liveParcelPowerConsumtion = connection.metteredPowerConsumtion() * duration
+        datarate = connection.datarate() * np.random.uniform(
+            Config.get("connection_actual_datarate_low"), 
+            Config.get("connection_actual_datarate_high"))
+        self._liveParcelTransmitDuration = Parcel.size / datarate
+        self._liveParcelCompletionTime = Common.time() + self._liveParcelTransmitDuration
+        self._liveParcelPowerConsumtion = connection.metteredPowerConsumtion() * self._liveParcelTransmitDuration
         self._simulator.registerEvent(self._liveParcelCompletionTime, self._id)
         
     def remainingTransmitSize(self):
         remainingSize = 0
         connection = self._plug.fetchDestinationConnection(self._id)
         if (self._liveParcel != None and self._liveParcelCompletionTime <= Common.time()):
-            remainingSize += (Common.time() - self._liveParcelCompletionTime) * connection.datarate()
+            remainingSize += ((Common.time() - self._liveParcelCompletionTime) /
+                              self._liveParcelTransmitDuration) * self._liveParcel.size
         
         for parcel in self._queue.deque():
             remainingSize += parcel.size
