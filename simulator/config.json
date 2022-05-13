@@ -16,6 +16,11 @@
     "connection_actual_datarate_low": 0.5,
     "connection_actual_datarate_high": 1.5,
 
+    "task_from_task_list_listsize": 10,
+
+    "mode_workload_provided": false,
+    "mode_tasks_from_task_list": true,
+
     "mobile_watts_per_tflop": 0.5,
     "mobile_transmit_power_watts": 0.04,
     "edge_transmit_power_watts": 0.1,

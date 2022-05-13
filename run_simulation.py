@@ -1,9 +1,11 @@
 import numpy as np
 import tensorflow as tf
+
 from simulator.core.simulator import Simulator
 from simulator import Config
 from simulator.environment.task_environment import TaskEnvironment
 from simulator.logger import LogOutputConsolePrint, Logger
+from simulator.processes.task_generator import TaskGenerator
 from simulator.world_builds.box_world import BoxWorld
 from simulator.reporters import TransitionReporter
 from simulator.task_multiplexing import TaskMultiplexerSelectorDql
@@ -17,6 +19,9 @@ Logger.registerLogOutput(LogOutputConsolePrint())
 np.random.seed(Config.get('random_seed'))
 tf.random.set_seed(Config.get('random_seed'))
 
+
+#generate task list: this is called here to make sure all selectors receive the same list of tuples
+TaskGenerator.retrieveList()
 
 
 world = BoxWorld()
@@ -37,7 +42,7 @@ greedySelectorGenerator = lambda state: TaskMultiplexerSelectorGreedy(state)
 
 taskEnvironment = TaskEnvironment(edgeNodes, mobileNodes, 
                                   edgeSelectorGenerator= greedySelectorGenerator, 
-                                  mobileSelectorGenerator= greedySelectorGenerator,
+                                  mobileSelectorGenerator= dqlSelectorGenerator,
                                   edgeRewardFunction= edgeReward,
                                   mobileRewardFunction=mobileReward)
 simulator = Simulator()

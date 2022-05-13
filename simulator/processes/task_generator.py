@@ -27,6 +27,7 @@ class TaskGenerator(Process):
         self._loadCongif()
         
     def _loadCongif(self):
+        self._mode_tasks_from_task_list = Config.get("mode_tasks_from_task_list")
         self._task_size_kBit = Config.get("task_size_kBit")
         self._task_size_sd_kBit = Config.get("task_size_sd_kBit")
         self._task_size_min_kBit = Config.get("task_size_min_kBit")
@@ -39,10 +40,58 @@ class TaskGenerator(Process):
         timeQueue = self._plug.fetchTaskDistributionTimeQueue(self.id())
         while(len(timeQueue) > 0 and timeQueue[0] <= Common.time()):
             timeQueue.popleft()
-            #TODO task should have more variables such as arrival time which should be taken from time queue
-            taskSize = np.random.normal(self._task_size_kBit, self._task_size_sd_kBit) * 1000
-            taskSize = int(max([self._task_size_min_kBit * 1000, taskSize]))
-            flops = np.random.normal(self._task_kflops_per_bit, self._task_kflops_per_bit_sd) * 1000
-            flops = int(max([self._task_kflops_per_bit_min * 1000, flops]))
-            newTask = Task(taskSize, flops, self._plug.taskNodeId(self._id), Common.time())
-            self._plug.taskArrival(newTask, self._id)
+            self.generateTask()
+            
+    def generateTask(self) -> Task:
+        TaskGenerator.retrieveConfig()
+        if TaskGenerator._mode_tasks_from_task_list:
+            return TaskGenerator._listTask(self._plug, self._id)
+        else:
+            return TaskGenerator._randomTask(self._plug, self._id)
+    
+    @classmethod
+    def _randomTask(cls, plug: TaskGeneratorPlug, id: int) -> Task:
+        taskSize, flops = cls.generateTaskTuple()
+        newTask = Task(taskSize, flops, plug.taskNodeId(id), Common.time())
+        plug.taskArrival(newTask, id)
+    
+    @classmethod
+    def _listTask(cls, plug: TaskGeneratorPlug, id: int) -> Task:
+        cls.retrieveList()
+        taskSize, flops =cls._tupleList[np.random.randint(0, len(cls._tupleList))]
+        newTask = Task(taskSize, flops, plug.taskNodeId(id), Common.time())
+        plug.taskArrival(newTask, id)
+    
+    @classmethod
+    def retrieveList(cls):
+        cls.retrieveConfig()
+        if not hasattr(cls, "_list_retrieved"):
+            cls._list_retrieved = True
+            cls._tupleList = []
+            listsize = Config.get("task_from_task_list_listsize")
+            for i in range(0, listsize):
+                cls._tupleList.append(cls.generateTaskTuple())
+    
+    @classmethod
+    def generateTaskTuple(cls):
+        #TODO: try other distributions
+        taskSize = np.random.normal(cls._task_size_kBit, cls._task_size_sd_kBit) * 1000
+        taskSize = int(max([cls._task_size_min_kBit * 1000, taskSize]))
+        flops = np.random.normal(cls._task_kflops_per_bit, cls._task_kflops_per_bit_sd) * 1000
+        flops = int(max([cls._task_kflops_per_bit_min * 1000, flops]))
+        return (taskSize, flops)
+    
+    @classmethod
+    def retrieveConfig(cls):
+        if not hasattr(cls, "_config_retrieved"):
+            cls._config_retrieved = True
+            cls._mode_tasks_from_task_list = Config.get("mode_tasks_from_task_list")
+            cls._task_size_kBit = Config.get("task_size_kBit")
+            cls._task_size_sd_kBit = Config.get("task_size_sd_kBit")
+            cls._task_size_min_kBit = Config.get("task_size_min_kBit")
+            cls._task_kflops_per_bit = Config.get("task_kflops_per_bit")
+            cls._task_kflops_per_bit_sd = Config.get("task_kflops_per_bit_sd")
+            cls._task_kflops_per_bit_min = Config.get("task_kflops_per_bit_min")
+            
+    
+    
