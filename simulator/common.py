@@ -1,3 +1,4 @@
+import time
 import simulator
 
 class Common:
@@ -22,3 +23,9 @@ class Common:
         else:
             cls._lastId += 1
         return cls._lastId
+    
+    @classmethod
+    def simulationRunId(cls):
+        if not hasattr(cls, "_simulationRunId"):
+            cls._simulationRunId = hex(hash(time.time()) % 1000000)
+        return cls._simulationRunId
