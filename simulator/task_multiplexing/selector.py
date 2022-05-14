@@ -38,7 +38,7 @@ class TaskMultiplexerSelectorRandom(TaskMultiplexerSelector):
     
 class TaskMultiplexerSelectorLocal(TaskMultiplexerSelector):
     def action(self, task: Task, state: Sequence[float]) -> int:
-        return None
+        return 0
     
     def select(self, action: Any) -> int:
         return action

@@ -25,6 +25,10 @@ class Common:
         return cls._lastId
     
     @classmethod
+    def setSimulationRunId(cls, id: str):
+        cls._simulationRunId = id
+    
+    @classmethod
     def simulationRunId(cls):
         if not hasattr(cls, "_simulationRunId"):
             cls._simulationRunId = hex(hash(time.time()) % 1000000)
