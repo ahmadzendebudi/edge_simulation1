@@ -29,11 +29,10 @@ world = BoxWorld()
 edgeNodes, mobileNodes = world.build()
 edgeReward, mobileReward = world.defaultRewards()
 
+simulator = Simulator()
 
-
-mobileReporter = TransitionReporter() 
-edgeReporter = TransitionReporter() 
-
+mobileReporter = TransitionReporter(simulator, "mobile") 
+edgeReporter = TransitionReporter(simulator, "edge") 
 
 dqlSelectorGenerator = lambda state: TaskMultiplexerSelectorDql(state, Config.get("dql_training_buffer_size"))
 localSelectorGenerator = lambda state: TaskMultiplexerSelectorLocal()
@@ -42,11 +41,10 @@ randomSelectorGenerator = lambda state: TaskMultiplexerSelectorRandom()
 greedySelectorGenerator = lambda state: TaskMultiplexerSelectorGreedy(state)
 
 taskEnvironment = TaskEnvironment(edgeNodes, mobileNodes, 
-                                  edgeSelectorGenerator= dqlSelectorGenerator, 
-                                  mobileSelectorGenerator= dqlSelectorGenerator,
+                                  edgeSelectorGenerator= greedySelectorGenerator, 
+                                  mobileSelectorGenerator= localSelectorGenerator,
                                   edgeRewardFunction= edgeReward,
                                   mobileRewardFunction=mobileReward)
-simulator = Simulator()
 taskEnvironment.initialize(simulator, [mobileReporter.addTransition], [edgeReporter.addTransition])
 simulator.run()
 
@@ -56,3 +54,4 @@ Logger.log("mobile power consumed: " + str(mobileReporter.averagePowerConsumed()
 
 
 Logger.closeLogOutputs()
+mobileReporter.pickle()
