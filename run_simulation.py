@@ -1,10 +1,11 @@
+import time
 import numpy as np
 import tensorflow as tf
 
 from simulator.core.simulator import Simulator
 from simulator import Config
 from simulator.environment.task_environment import TaskEnvironment
-from simulator.logger import LogOutputConsolePrint, Logger
+from simulator.logger import LogOutputConsolePrint, LogOutputTextFile, Logger
 from simulator.processes.task_generator import TaskGenerator
 from simulator.world_builds.box_world import BoxWorld
 from simulator.reporters import TransitionReporter
@@ -14,8 +15,8 @@ from simulator.task_multiplexing import TaskMultiplexerSelectorRandom
 from simulator.task_multiplexing import TaskMultiplexerSelectorRemote
 from simulator.task_multiplexing import TaskMultiplexerSelectorGreedy
 
-
 Logger.registerLogOutput(LogOutputConsolePrint())
+Logger.registerLogOutput(LogOutputTextFile("log\log" + str(time.time()) + ".log"))
 np.random.seed(Config.get('random_seed'))
 tf.random.set_seed(Config.get('random_seed'))
 
@@ -41,7 +42,7 @@ randomSelectorGenerator = lambda state: TaskMultiplexerSelectorRandom()
 greedySelectorGenerator = lambda state: TaskMultiplexerSelectorGreedy(state)
 
 taskEnvironment = TaskEnvironment(edgeNodes, mobileNodes, 
-                                  edgeSelectorGenerator= greedySelectorGenerator, 
+                                  edgeSelectorGenerator= dqlSelectorGenerator, 
                                   mobileSelectorGenerator= dqlSelectorGenerator,
                                   edgeRewardFunction= edgeReward,
                                   mobileRewardFunction=mobileReward)
@@ -50,5 +51,8 @@ taskEnvironment.initialize(simulator, [mobileReporter.addTransition], [edgeRepor
 simulator.run()
 
 
-print("mobile delay: " + str(mobileReporter.averageDelay()))
-print("mobile power consumed: " + str(mobileReporter.averagePowerConsumed()))
+Logger.log("mobile delay: " + str(mobileReporter.averageDelay()), 0)
+Logger.log("mobile power consumed: " + str(mobileReporter.averagePowerConsumed()), 0)
+
+
+Logger.closeLogOutputs()

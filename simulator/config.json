@@ -18,8 +18,8 @@
 
     "task_from_task_list_listsize": 10,
 
-    "mode_workload_provided": false,
-    "mode_tasks_from_task_list": true,
+    "mode_workload_provided": true,
+    "mode_tasks_from_task_list": false,
 
     "mobile_watts_per_tflop": 0.5,
     "mobile_transmit_power_watts": 0.04,
@@ -33,7 +33,7 @@
     "mobile_cpu_core_tflops": 1,
     "mobile_cpu_cores": 1,
     "edge_cpu_core_tflops": 5,
-    "edge_cpu_cores": 12,
+    "edge_cpu_cores": 4,
 
     "#debug_level": "debug level -1:No debug, 0: must show only, 1:breif debug, 2: medium debug, 3: extensive debug",
     "debug_level": 2,

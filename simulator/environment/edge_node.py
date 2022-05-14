@@ -126,11 +126,16 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     
     def _updateDestEdge(self, task: Task):
         destId = None
-        minWorkload = None
+        minValue = None
+        index = 0
+        if not Config.get("mode_workload_provided"):
+            index = 1
         for id, value in self._edgeStatesMap.items():
-            if minWorkload == None or minWorkload > value[0]:
-                destId = id
+                if minValue == None or minValue > value[index]:
+                    minValue = value[index]
+                    destId = id
         self._destEdgeId = destId
+        Logger.log("updated dest (" + str(self.id()) + "edge: id: " + str(self._destEdgeId) + " value: " + str(value), 3)
         #TODO Instead of workload, it should be updated whenever state is fetched
     
     def fetchState(self, task: Task, processId: int) -> Sequence[float]:
@@ -205,7 +210,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     
     #Task Runner
     def taskRunComplete(self, task: Task, processId: int):
-        recordTransitionCompletion = task.hopLimit == 1
+        recordTransitionCompletion = task.hopLimit() == 1
         self._taskResultsArrival(task, recordTransitionCompletion)
     
     def _taskResultsArrival(self, task: Task, recordTransitionCompletion = False):

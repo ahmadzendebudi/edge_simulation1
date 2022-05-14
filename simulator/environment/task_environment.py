@@ -9,6 +9,7 @@ from simulator.core.task import Task
 from simulator.environment.edge_node import EdgeNode
 from simulator.environment.mobile_node import MobileNode
 from simulator.core.environment import Environment
+from simulator.logger import Logger
 from simulator.task_multiplexing.selector import TaskMultiplexerSelector, TaskMultiplexerSelectorLocal, TaskMultiplexerSelectorRandom
 from simulator.task_multiplexing.transition_recorder import Transition, TransitionRecorderPlug, TwoStepTransitionRecorder
 
@@ -101,6 +102,7 @@ class TaskEnvironment(Environment):
         #Add to buffer
         for transition in self._edgeCompletedTransitionList:
             self._edge_multiplex_selector.addToBuffer(transition)
+            Logger.log("add to edge transition buffer: " + str(transition), 3)
         
         #Train
         self._edge_multiplex_selector.train()

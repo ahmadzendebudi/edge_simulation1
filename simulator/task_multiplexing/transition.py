@@ -17,4 +17,8 @@ class Transition:
     
     def reward(self):
         return self._rewardFunction(self)
+    
+    def __str__(self) -> str:
+        return ("state1: " + str(self.state1) + " state2: " + str(self.state2) + " action: " +
+                str(self.action) + " reward: " + str(self.reward()) + " delay: " + str(self.delay))
  
