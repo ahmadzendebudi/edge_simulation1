@@ -59,6 +59,8 @@ class TaskMultiplexerSelectorGreedy(TaskMultiplexerSelector):
                 self._localTransferQueueSizeIndex = 5
                 self._remoteQueueSizeIndex = 6
         
+        self._wattsPerFlop = Config.get("mobile_watts_per_tflop") / (10 ** 12)
+        self._wattsPerTransmitSecond = Config.get("mobile_transmit_power_watts")
         self._normalTaskWorkload = Config.get("task_size_kBit") * Config.get("task_kflops_per_bit") * 10 ** 6
         self._delayCoefficient = Config.get("delay_coefficient")
         self._powerCoefficient = Config.get("power_coefficient")
@@ -67,18 +69,28 @@ class TaskMultiplexerSelectorGreedy(TaskMultiplexerSelector):
         
     def action(self, task: Task, state: Sequence[float]) -> Any:
         #TODO make use of task
+        localRun = None
+        transfer = None
+        remoteRun = None
+        powerLocal = None
+        powerRemote = None
         if Config.get("mode_workload_provided"):
             localRun = state[self._localWorkloadIndex] * self._normalTaskWorkload / self._localFlops
             transfer = state[self._localTransferSizeIndex] / state[self._dataRateIndex]
             remoteRun = ((state[self._localTransferWorkloadIndex] + state[self._remoteWorkloadIndex]) *
                         self._normalTaskWorkload / (self._remoteFlops * self._remoteCores))
-            return localRun > transfer + remoteRun
+            powerLocal = state[self._localWorkloadIndex] * self._normalTaskWorkload * self._wattsPerFlop
+            powerRemote = transfer * self._wattsPerTransmitSecond
         else:
             localRun = state[self._localQueueSizeIndex] * self._normalTaskWorkload / self._localFlops
             transfer = state[self._localTransferSizeIndex] / state[self._dataRateIndex]
             remoteRun = ((state[self._localTransferQueueSizeIndex] + state[self._remoteQueueSizeIndex]) *
                         self._normalTaskWorkload / (self._remoteFlops * self._remoteCores))
-            return localRun > transfer + remoteRun
+            powerLocal = state[self._localQueueSizeIndex] * self._normalTaskWorkload * self._wattsPerFlop
+            powerRemote = transfer * self._wattsPerTransmitSecond
+            
+        return (self._delayCoefficient * localRun + self._powerCoefficient * powerLocal >
+                self._delayCoefficient * (transfer + remoteRun) + self._powerCoefficient *  powerRemote)
             
     
     def select(self, action: Any) -> int:

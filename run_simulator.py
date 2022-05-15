@@ -44,7 +44,7 @@ randomSelectorGenerator = lambda state: TaskMultiplexerSelectorRandom()
 greedySelectorGenerator = lambda state: TaskMultiplexerSelectorGreedy(state)
 
 taskEnvironment = TaskEnvironment(edgeNodes, mobileNodes, 
-                                  edgeSelectorGenerator= greedySelectorGenerator, 
+                                  edgeSelectorGenerator= localSelectorGenerator, 
                                   mobileSelectorGenerator= localSelectorGenerator,
                                   edgeRewardFunction= edgeReward,
                                   mobileRewardFunction=mobileReward)

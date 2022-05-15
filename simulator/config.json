@@ -1,5 +1,5 @@
 {
-    "task_generation_duration": 100,
+    "task_generation_duration": 200,
     "node_state_transmission_interval": 1,
     "task_generator_prefetch_time": 50,
     "task_generator_lambda": 0.5,
@@ -9,7 +9,7 @@
     "task_kflops_per_bit": 3000,
     "task_kflops_per_bit_sd": 500,
     "task_kflops_per_bit_min": 500,
-    "random_seed": 9578337,
+    "random_seed": 95783372,
     "initial_unique_id": 1,
     "state_parcel_size_per_variable_in_bits": 64,
     "task_result_parcel_size_in_bits": 1024,
