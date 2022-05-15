@@ -6,5 +6,7 @@ from simulator import core
 import random
 from tf_agents.trajectories import PolicyStep
 
-a = PolicyStep(np.array(1), (), ())
-print(a)
+from simulator.config import Config
+from simulator.logger import Logger
+
+Logger.log(Config.get("dql_learning_discount"), 1)

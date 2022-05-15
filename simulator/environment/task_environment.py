@@ -94,6 +94,7 @@ class TaskEnvironment(Environment):
         #Add to buffer
         for transition in self._mobileCompletedTransitionList:
             self._moblie_multiplex_selector.addToBuffer(transition)
+            Logger.log("add to mobile transition buffer: " + str(transition), 2)
         
         #Train
         self._moblie_multiplex_selector.train()

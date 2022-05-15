@@ -31,5 +31,5 @@ class Common:
     @classmethod
     def simulationRunId(cls):
         if not hasattr(cls, "_simulationRunId"):
-            cls._simulationRunId = hex(hash(time.time()) % 1000000)
+            cls._simulationRunId = hex(hash(time.time()))
         return cls._simulationRunId

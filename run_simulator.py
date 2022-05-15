@@ -16,7 +16,8 @@ from simulator.task_multiplexing import TaskMultiplexerSelectorRemote
 from simulator.task_multiplexing import TaskMultiplexerSelectorGreedy
 from simulator import Common
 
-Common.setSimulationRunId("local")
+
+#Common.setSimulationRunId("dql3")
 
 Logger.registerLogOutput(LogOutputConsolePrint())
 Logger.registerLogOutput(LogOutputTextFile("log\log" + Common.simulationRunId() + ".log"))
@@ -44,8 +45,8 @@ randomSelectorGenerator = lambda state: TaskMultiplexerSelectorRandom()
 greedySelectorGenerator = lambda state: TaskMultiplexerSelectorGreedy(state)
 
 taskEnvironment = TaskEnvironment(edgeNodes, mobileNodes, 
-                                  edgeSelectorGenerator= localSelectorGenerator, 
-                                  mobileSelectorGenerator= localSelectorGenerator,
+                                  edgeSelectorGenerator= dqlSelectorGenerator, 
+                                  mobileSelectorGenerator= dqlSelectorGenerator,
                                   edgeRewardFunction= edgeReward,
                                   mobileRewardFunction=mobileReward)
 taskEnvironment.initialize(simulator, [mobileReporter.addTransition], [edgeReporter.addTransition])
@@ -57,3 +58,4 @@ Logger.log("mobile power consumed: " + str(mobileReporter.averagePowerConsumed()
 
 Logger.closeLogOutputs()
 mobileReporter.pickle()
+edgeReporter.pickle()
