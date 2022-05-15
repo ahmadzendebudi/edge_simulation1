@@ -55,7 +55,7 @@ def runBatchSimulation(varients, runIdentifier):
                 #Save a reference to simulation results for this run
                 reportMap.append({"runId": Common.simulationRunId(), "varient": values}) 
      
-    with open("reportMap{id}.json".format(id = runIdentifier), "a") as f:
+    with open("reportMaps/reportMap{id}.json".format(id = runIdentifier), "a") as f:
         f.truncate(0)
         json.dump(reportMap, f)    
         
@@ -112,7 +112,7 @@ runIdentifier = "1"
 varients = []
 #varients.append({"step": 1, "config": "task_generator_lambda", "values": np.arange(0.1, 1.1, 0.1)})
 #varients.append({"step": 2, "config": "boxworld_mobile_nodes", "values": [50, 75, 100, 150, 200]})
-varients.append({"step": 1, "config": "edge_selector", "values": ["dql"]})
-varients.append({"step": 1, "config": "mobile_selector", "values": ["dql"]})
+varients.append({"step": 1, "config": "edge_selector", "values": ["greedy"]})
+varients.append({"step": 1, "config": "mobile_selector", "values": ["remote"]})
 
 runBatchSimulation(varients, runIdentifier)
