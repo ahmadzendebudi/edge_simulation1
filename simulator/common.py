@@ -33,3 +33,8 @@ class Common:
         if not hasattr(cls, "_simulationRunId"):
             cls._simulationRunId = hex(hash(time.time()))
         return cls._simulationRunId
+    
+    @classmethod
+    def simulationResetRunId(cls):
+        cls._simulationRunId = hex(hash(time.time()))
+        return cls._simulationRunId

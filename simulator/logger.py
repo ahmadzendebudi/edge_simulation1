@@ -31,6 +31,11 @@ class LogOutputTextFile(LogOutput):
         self.file.close()
     
 class Logger:
+    
+    @classmethod
+    def unregisterAllOutPut(cls) -> None:
+        cls.logOutputs = []
+    
     @classmethod
     def registerLogOutput(cls, output: LogOutput) -> None:
         if not hasattr(cls, "logOutputs"):

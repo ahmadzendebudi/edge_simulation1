@@ -43,8 +43,15 @@
     "dql_training_batch_size": 200,
     "dql_training_interval": 100,
     "dql_training_buffer_size": 10000,
-    "dql_learning_discount": 0.3,
+    "dql_learning_discount": 0.1,
 
     "delay_coefficient": 1,
-    "power_coefficient": 1
+    "power_coefficient": 1,
+
+    "#boxworld": "box world values",
+    "boxworld_mobile_nodes": 100,
+
+    "#selectors": "greedy, dql, local, remote, random",
+    "mobile_selector": "dql",
+    "edge_selector": "dql"
 }

@@ -8,5 +8,4 @@ from tf_agents.trajectories import PolicyStep
 
 from simulator.config import Config
 from simulator.logger import Logger
-
-Logger.log(Config.get("dql_learning_discount"), 1)
+print(np.arange(0.1, 1.1, 0.1))

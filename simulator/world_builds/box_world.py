@@ -16,7 +16,8 @@ class BoxWorld(EdgeNodePlug, MobileNodePlug):
         self._loadConfig()
         edgeNodesLocation = [[25, 25], [75, 25], [75, 75], [25, 75]]
         mobileNodesLocation = []
-        for _ in range(100):
+        mobileCount = Config.get("boxworld_mobile_nodes")
+        for _ in range(mobileCount):
             mobileNodesLocation.append(np.random.randint(1, 100, 2).tolist())
         
         self._edgeDevices = {}
