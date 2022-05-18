@@ -107,7 +107,7 @@ def runSimulation():
         
 #==========================================================================================
    
-runIdentifier = "1"
+runIdentifier = "3"
 
 varients = []
 varients.append({"step": 1, "config": "task_generator_lambda", "values": np.arange(0.1, 1.1, 0.1)})
@@ -115,15 +115,11 @@ varients.append({"step": 1, "config": "edge_selector", "values": ["dql"]})
 varients.append({"step": 1, "config": "mobile_selector", "values": ["dql"]})
 
 varients.append({"step": 2, "config": "task_generator_lambda", "values": np.arange(0.1, 1.1, 0.1)})
-varients.append({"step": 2, "config": "edge_selector", "values": ["greedy", "local"]})
-varients.append({"step": 2, "config": "mobile_selector", "values": ["greedy", "local", "remote", "random"]})
+varients.append({"step": 2, "config": "edge_selector", "values": ["greedy"]})
+varients.append({"step": 2, "config": "mobile_selector", "values": ["greedy"]})
 
-varients.append({"step": 3, "config": "boxworld_mobile_nodes", "values": [50, 75, 100, 150, 200]})
-varients.append({"step": 3, "config": "edge_selector", "values": ["dql"]})
-varients.append({"step": 3, "config": "mobile_selector", "values": ["dql"]})
-
-varients.append({"step": 4, "config": "boxworld_mobile_nodes", "values": [50, 75, 100, 150, 200]})
-varients.append({"step": 4, "config": "edge_selector", "values": ["greedy", "local"]})
-varients.append({"step": 4, "config": "mobile_selector", "values": ["greedy", "local", "remote", "random"]})
+varients.append({"step": 3, "config": "task_generator_lambda", "values": np.arange(0.1, 1.1, 0.1)})
+varients.append({"step": 3, "config": "edge_selector", "values": ["local"]})
+varients.append({"step": 3, "config": "mobile_selector", "values": ["random"]})
 
 runBatchSimulation(varients, runIdentifier)
