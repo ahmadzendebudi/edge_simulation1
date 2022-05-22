@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
 
-set1 = {"345"}
-df = pd.DataFrame([template, t2])
-print(df)
+a = True
+if a:
+    b = 1
+else:
+    b = 2
+    
+print(b)

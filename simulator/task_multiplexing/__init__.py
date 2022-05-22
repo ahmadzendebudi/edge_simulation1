@@ -1,6 +1,5 @@
 
 from simulator.task_multiplexing.transition import Transition
-from simulator.task_multiplexing.transition_recorder import TransitionRecorderPlug
 from simulator.task_multiplexing.transition_recorder import TransitionRecorder
 from simulator.task_multiplexing.transition_recorder import TwoStepTransitionRecorder
 from simulator.task_multiplexing.selector import TaskMultiplexerSelector

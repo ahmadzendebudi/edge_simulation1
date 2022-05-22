@@ -56,16 +56,17 @@ def runBatchSimulation(varients, runIdentifier):
                 #Save a reference to simulation results for this run
                 reportMap.append({"runId": Common.simulationRunId(), "varient": values}) 
      
-    with open("reportMaps/reportMap{id}.json".format(id = runIdentifier), "a") as f:
-        f.truncate(0)
-        json.dump(reportMap, f)    
+        Path("results/reportMaps").mkdir(parents=True, exist_ok=True)
+        with open("results/reportMaps/reportMap{id}.json".format(id = runIdentifier), "a") as f:
+            f.truncate(0)
+            json.dump(reportMap, f)    
         
 
 def runSimulation():
     Logger.unregisterAllOutPut()
     Logger.registerLogOutput(LogOutputConsolePrint())
-    Path("log").mkdir(parents=True, exist_ok=True)
-    Logger.registerLogOutput(LogOutputTextFile("log/log" + Common.simulationRunId() + ".log"))
+    Path("results/log").mkdir(parents=True, exist_ok=True)
+    Logger.registerLogOutput(LogOutputTextFile("results/log/log" + Common.simulationRunId() + ".log"))
     np.random.seed(Config.get('random_seed'))
     tf.random.set_seed(Config.get('random_seed'))
 
@@ -79,12 +80,15 @@ def runSimulation():
     edgeReward, mobileReward = world.defaultRewards()
 
     simulator = Simulator()
-
-    mobileReporter = TransitionReporter(simulator, "mobile") 
-    edgeReporter = TransitionReporter(simulator, "edge") 
+    Path("results/reports").mkdir(parents=True, exist_ok=True)
+    mobileReportPath = 'results/reports/reportmobile' + Common.simulationRunId() + ".pkl"
+    edgeReportPath = 'results/reports/reportedge' + Common.simulationRunId() + ".pkl"
+    mobileReporter = TransitionReporter(simulator, mobileReportPath) 
+    edgeReporter = TransitionReporter(simulator, edgeReportPath) 
 
     selectors = {
-        "dql": lambda state: TaskMultiplexerSelectorDql(state, Config.get("dql_training_buffer_size")),
+        "dql": lambda state: TaskMultiplexerSelectorDql(state, Config.get("dql_training_buffer_size"), 
+                                                        Config.get("dql_training_interval")),
         "local": lambda state: TaskMultiplexerSelectorLocal(),
         "remote": lambda state: TaskMultiplexerSelectorRemote(),
         "random": lambda state: TaskMultiplexerSelectorRandom(),
@@ -113,20 +117,34 @@ runIdentifier = "2"
 
 varients = []
 #varients.append({"step": 1, "config": "task_generator_lambda", "values": np.arange(0.1, 1.1, 0.1)})
+step = 0
+if True:
+    step += 1
+    varients.append({"step": step, "config": "task_generation_duration", "values": [100]})
+    varients.append({"step": step, "config": "boxworld_mobile_nodes", "values": [100]})
+    varients.append({"step": step, "config": "dql_learning_discount", "values": [0.1]})
+    varients.append({"step": step, "config": "dql_training_interval", "values": [5]})
+    varients.append({"step": step, "config": "edge_selector", "values": ["dql"]})
+    varients.append({"step": step, "config": "mobile_selector", "values": ["dql"]})
 
-varients.append({"step": 1, "config": "task_generation_duration", "values": [200]})
-varients.append({"step": 1, "config": "boxworld_mobile_nodes", "values": [100]})
-varients.append({"step": 1, "config": "dql_lear ning_discount", "values": [0.1]})
-varients.append({"step": 1, "config": "edge_selector", "values": ["dql"]})
-varients.append({"step": 1, "config": "mobile_selector", "values": ["dql"]})
-varients.append({"step": 1, "config": "mode_workload_provided", "values": [False]})
-varients.append({"step": 1, "config": "mode_tasks_from_task_list", "values": [True]})
+    if True:
+        varients.append({"step": step, "config": "mode_workload_provided", "values": [False]})
+        varients.append({"step": step, "config": "mode_tasks_from_task_list", "values": [True]})
+        varients.append({"step": step, "config": "mode_tasks_type", "values": ["uniform"]})
+        varients.append({"step": step, "config": "mode_tasks_size_dependent_workload", "values": [False]})
 
-varients.append({"step": 2, "config": "task_generation_duration", "values": [200]})
-varients.append({"step": 2, "config": "boxworld_mobile_nodes", "values": [100]})
-varients.append({"step": 2, "config": "edge_selector", "values": ["greedy"]})
-varients.append({"step": 2, "config": "mobile_selector", "values": ["greedy"]})
-varients.append({"step": 2, "config": "mode_workload_provided", "values": [False]})
-varients.append({"step": 2, "config": "mode_tasks_from_task_list", "values": [True]})
+if True:
+    step += 1
+    varients.append({"step": step, "config": "task_generation_duration", "values": [100]})
+    varients.append({"step": step, "config": "boxworld_mobile_nodes", "values": [100]})
+    varients.append({"step": step, "config": "edge_selector", "values": ["greedy"]})
+    varients.append({"step": step, "config": "mobile_selector", "values": ["greedy"]})
+
+    if True:
+        varients.append({"step": step, "config": "mode_workload_provided", "values": [False]})
+        varients.append({"step": step, "config": "mode_tasks_from_task_list", "values": [True]})
+        varients.append({"step": step, "config": "mode_tasks_type", "values": ["uniform"]})
+        varients.append({"step": step, "config": "mode_tasks_size_dependent_workload", "values": [False]})
+
 
 runBatchSimulation(varients, runIdentifier)

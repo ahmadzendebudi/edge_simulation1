@@ -6,9 +6,11 @@
     "task_size_kBit": 1000,
     "task_size_sd_kBit": 500,
     "task_size_min_kBit": 500,
+    "task_size_max_kBit": 2000,
     "task_kflops_per_bit": 3000,
     "task_kflops_per_bit_sd": 500,
     "task_kflops_per_bit_min": 500,
+    "task_kflops_per_bit_max": 5000,
     "random_seed": 95783372,
     "initial_unique_id": 1,
     "state_parcel_size_per_variable_in_bits": 64,
@@ -20,6 +22,9 @@
 
     "mode_workload_provided": true,
     "mode_tasks_from_task_list": false,
+    "#mode_tasks_type": "types: normal, uniform",
+    "mode_tasks_type": "normal",
+    "mode_tasks_size_dependent_workload": true,
 
     "mobile_watts_per_tflop": 0.5,
     "mobile_transmit_power_watts": 0.04,

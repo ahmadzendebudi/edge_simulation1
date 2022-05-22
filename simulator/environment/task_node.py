@@ -54,6 +54,7 @@ class TaskNode(Node, StateHandler, TaskRunnerPlug):
         if (self._transitionRecorder != None):
             if (self._rewardFunction == None):
                 raise ValueError("transition recorder is provided while reward function is None")
-            transition = Transition(task.id(), self._rewardFunction, state1, state2, actionObject)
+            transition = Transition(task.id(), self._rewardFunction, state1, state2, actionObject,
+                                    taskWorkload=task.workload())
             self._transitionRecorder.put(transition)
     

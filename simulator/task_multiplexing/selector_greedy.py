@@ -1,8 +1,11 @@
 
+from collections import deque
 from typing import Any, Sequence
 from simulator.config import Config
 from simulator.core.task import Task
+from simulator.logger import Logger
 from simulator.task_multiplexing.selector import TaskMultiplexerSelector
+from simulator.task_multiplexing.transition import Transition
 
 
 class TaskMultiplexerSelectorGreedy(TaskMultiplexerSelector):
@@ -61,10 +64,13 @@ class TaskMultiplexerSelectorGreedy(TaskMultiplexerSelector):
         
         self._wattsPerFlop = Config.get("mobile_watts_per_tflop") / (10 ** 12)
         self._wattsPerTransmitSecond = Config.get("mobile_transmit_power_watts")
+        #self._normalTaskWorkload will be updated after transitions arrive at addToBuffer method (if workload not provided)
         self._normalTaskWorkload = Config.get("task_size_kBit") * Config.get("task_kflops_per_bit") * 10 ** 6
+        
         self._delayCoefficient = Config.get("delay_coefficient")
         self._powerCoefficient = Config.get("power_coefficient")
         self._normalTaskSize = 10 ** 6
+        self._transitionBuffer = deque()
         super().__init__()
         
     def action(self, task: Task, state: Sequence[float]) -> Any:
@@ -98,3 +104,11 @@ class TaskMultiplexerSelectorGreedy(TaskMultiplexerSelector):
             return 1
         else:
             return None
+        
+    def addToBuffer(self, transition: Transition) -> None:
+        self._transitionBuffer.append(transition)
+        if (len(self._transitionBuffer) > 2000):
+            self._transitionBuffer.popleft()
+        if not Config.get("mode_workload_provided"):
+            self._normalTaskWorkload = sum(map(lambda x: x.taskWorkload, self._transitionBuffer))/ len(self._transitionBuffer)
+        Logger.log("addToBuffer, normalworkload:" + str( self._normalTaskWorkload ), 2)

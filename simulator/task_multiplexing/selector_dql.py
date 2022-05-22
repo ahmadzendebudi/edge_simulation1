@@ -21,10 +21,12 @@ from simulator.task_multiplexing.transition import Transition
 
 class TaskMultiplexerSelectorDql(TaskMultiplexerSelector):
     
-    def __init__(self, stateShape: Tuple[int], bufferSize: int = 10000) -> None:
+    def __init__(self, stateShape: Tuple[int], bufferSize: int = 10000, trainInterval: int = 100) -> None:
         observation_spec = specs.array_spec.BoundedArraySpec(stateShape, np.float32, minimum=0, name='observation')
         action_spec = specs.array_spec.BoundedArraySpec((), np.int32, 0, 1, 'action')
         self._transitionAgent = TransitionAgent(observation_spec, action_spec, bufferSize)
+        self._trainInterval = trainInterval
+        self._trainIntervalCounter = 0
         super().__init__()
     
     def action(self, task: Task, state: Sequence[float]) -> tj.PolicyStep:
@@ -42,8 +44,13 @@ class TaskMultiplexerSelectorDql(TaskMultiplexerSelector):
     def addToBuffer(self, transition: Transition):
         tfTransition = TaskMultiplexerSelectorDql._convertToTfTransition(transition)
         self._transitionAgent.addToBuffer(tfTransition)
+        self._trainIntervalCounter += 1
+        if (self._trainIntervalCounter >= self._trainInterval):
+            self._trainIntervalCounter = 0
+            self._train()
+        Logger.log("addToBuffer, transition:" + str(transition), 2)
             
-    def train(self) -> None:
+    def _train(self) -> None:
         self._transitionAgent.train()
            
     @classmethod

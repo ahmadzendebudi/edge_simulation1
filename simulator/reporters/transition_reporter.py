@@ -19,9 +19,9 @@ class TransitionReporterItem:
         self.action = action
          
 class TransitionReporter:
-    def __init__(self, simulator: Simulator, name) -> None:
+    def __init__(self, simulator: Simulator, path) -> None:
         self._simulator = simulator
-        self.name = name
+        self.path = path
         self.transitionList = []
     
     def addTransition(self, transition: Transition):
@@ -39,8 +39,7 @@ class TransitionReporter:
         return sum(map(lambda t: t.powerConsumtion, self.transitionList))/len(self.transitionList)
     
     def pickle(self):
-        Path("reports").mkdir(parents=True, exist_ok=True)
-        with open('reports/report' + self.name + Common.simulationRunId() + ".pkl", 'wb') as f:
+        with open(self.path, 'wb') as f:
             pickle.dump(self.transitionList, f)
             
     @classmethod       

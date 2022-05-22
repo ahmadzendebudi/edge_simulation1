@@ -45,8 +45,8 @@ class TaskRunner(Process):
     
     def _runTask(self, task: Task):
         self._liveTask = task
-        self._liveTaskCompletionTime = Common.time() + task.size() * task.workload() / self._flops
-        self._liveTaskPowerConsumption = task.size() * task.workload() * self._powerConsumttionPerTflops / (10 ** 12)
+        self._liveTaskCompletionTime = Common.time() + task.workload() / self._flops
+        self._liveTaskPowerConsumption = task.workload() * self._powerConsumttionPerTflops / (10 ** 12)
         self._plug.wakeTaskRunnerAt(self._liveTaskCompletionTime, self._id)
     
     def remainingWorkloadForCurrentTask(self) -> int:
@@ -59,6 +59,6 @@ class TaskRunner(Process):
     def remainingWorkloadTaskQueue(cls, taskQueue: TaskQueue) -> int:
         workload = 0
         for task in taskQueue.deque():
-            workload += task.size() * task.workload()
+            workload += task.workload()
         return workload
         

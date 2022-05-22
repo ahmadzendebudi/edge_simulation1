@@ -22,9 +22,6 @@ class TaskMultiplexerSelector:
     def addToBuffer(self, transition: Transition) -> None:
         pass
     
-    def train(self) -> None:
-        pass
-    
 
 class TaskMultiplexerSelectorRandom(TaskMultiplexerSelector):
     def __init__(self) -> None:

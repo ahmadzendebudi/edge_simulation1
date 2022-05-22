@@ -11,6 +11,7 @@ from simulator.core.simulator import Simulator
 from simulator.core.task import Task
 from simulator.environment.task_node import TaskNode
 from simulator.logger import Logger
+from simulator.processes.task_generator import TaskGenerator
 from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug
 from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTransmitterPlug
 from simulator.task_multiplexing.selector import TaskMultiplexerSelector
@@ -52,6 +53,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def initializeProcesses(self, simulator: Simulator, multiplexSelector: TaskMultiplexerSelector):
         super().initializeProcesses(simulator)
         
+        self._multiplexSelector = multiplexSelector
         self._taskMultiplexer = TaskMultiplexer(self, multiplexSelector, self)
         simulator.registerProcess(self._taskMultiplexer)
         self._multiplexQueue = TaskQueue()
@@ -153,7 +155,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def fetchTaskInflatedState(self, task: Task, processId: int) -> Sequence[float]:
         self._updateDestEdge(task)
         edgeState = self._edgeStatesMap[self._destEdgeId]
-        taskWorkload = task.size() * task.workload()
+        taskWorkload = task.workload()
         transmitter = self._transmitterMap[self._destEdgeId]
         transmitQueue = transmitter.transmitQueue()
         return self._generateState(task, self._nodeConnectionMap[self._destEdgeId].datarate(),
@@ -166,11 +168,11 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def _generateState(self, task: Task, datarate: int, localWorkload: int, localQueueSize: int,
                         localTransferWorkload: int, localTransferSize: int, localTransferQueueSize: int, 
                         remoteWorkload: int, remoteQueueSize: int):
-        normalTaskWorkload = Config.get("task_size_kBit") * Config.get("task_kflops_per_bit") * 10 ** 6
-        normalTaskSize = 10 ** 6
+        normalTaskWorkload = TaskGenerator.normalTaskWorkload()
+        normalTaskSize = TaskGenerator.normalTaskSize()
         
         if Config.get("mode_workload_provided"):
-            return [task.size() / normalTaskSize, task.size() * task.workload() / normalTaskWorkload, Common.time() - task.arrivalTime(),
+            return [task.size() / normalTaskSize, task.workload() / normalTaskWorkload, Common.time() - task.arrivalTime(),
                 datarate / normalTaskSize,
                 localWorkload / normalTaskWorkload, localQueueSize,
                 localTransferWorkload / normalTaskWorkload, localTransferSize / normalTaskSize, localTransferQueueSize,
@@ -199,13 +201,13 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     
     def taskTransimission(self, task: Task, processId: int, destinationId: int) -> None:
         transmitter = self._transmitterMap[self._destEdgeId]
-        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id, task.size() * task.workload())
+        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id, task.workload())
         transmitter.transmitQueue().put(parcel)
         self._simulator.registerEvent(Common.time(), transmitter.id())
         #approximating the work load in edge by adding the current task to the last state report of said edge:
         #No longer needed as the transmitter metrics are included in state
         #edgeState = self._edgeStatesMap[self._destEdgeId]
-        #self._edgeStatesMap[self._destEdgeId] = [edgeState[0] + task.size() * task.workload(), edgeState[1] + 1]
+        #self._edgeStatesMap[self._destEdgeId] = [edgeState[0] + task.workload(), edgeState[1] + 1]
         
     
     #Task Runner
@@ -214,10 +216,10 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         self._taskResultsArrival(task, recordTransitionCompletion)
     
     def _taskResultsArrival(self, task: Task, recordTransitionCompletion = False):
-        if recordTransitionCompletion: #TODO dql selector should be unique to each edge, to be implemented
+        if recordTransitionCompletion:
             delay = Common.time() - task.arrivalTime()
-            self._transitionRecorder.completeTransition(task.id(), delay, task.powerConsumed)
-        
+            transition = self._transitionRecorder.completeTransition(task.id(), delay, task.powerConsumed)
+            self._multiplexSelector.addToBuffer(transition)
         taskSenderNodeId = self._taskIdToSenderIdMap.pop(task.id())
         size = Config.get("task_result_parcel_size_in_bits")
         parcel = Parcel(Common.PARCEL_TYPE_TASK_RESULT, size, task, self.id())

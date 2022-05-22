@@ -12,6 +12,7 @@ from simulator.core.simulator import Simulator
 from simulator.core.task_queue import TaskQueue
 from simulator.core.task import Task
 from simulator.environment.task_node import TaskNode
+from simulator.task_multiplexing.transition import Transition
 from simulator.task_multiplexing.transition_recorder import TransitionRecorder
 from simulator.logger import Logger
 from simulator.processes.task_distributer import TaskDistributer, TaskDistributerPlug
@@ -43,7 +44,9 @@ class TaskMultiplexerSelectorMobile(TaskMultiplexerSelector):
             return None
         else:
             raise ValueError("output selection: " + str(selection) + " is not supported by this selector")
-            
+    
+    def addToBuffer(self, transition: Transition) -> None:
+        self._innerSelector.addToBuffer(transition)      
             
 class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int,
@@ -80,9 +83,9 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         self._taskGenerator = TaskGenerator(self)
         simulator.registerProcess(self._taskGenerator)
         
-        mobileMultiplexSelector = TaskMultiplexerSelectorMobile(
+        self._multiplexSelector = TaskMultiplexerSelectorMobile(
             multiplexSelector, self._edgeConnection.destNode())
-        self._taskMultiplexer = TaskMultiplexer(self, mobileMultiplexSelector, self)
+        self._taskMultiplexer = TaskMultiplexer(self, self._multiplexSelector, self)
         simulator.registerProcess(self._taskMultiplexer)
         self._multiplexQueue = TaskQueue()
         simulator.registerTaskQueue(self._multiplexQueue)
@@ -123,7 +126,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
     
     
     def fetchTaskInflatedState(self, task: Task, processId: int) -> Sequence[float]:
-        taskWorkload = task.size() * task.workload()
+        taskWorkload = task.workload()
         return self._generateState(task, self._edgeConnection.datarate(),
                 self.currentWorkload() + taskWorkload, self._localQueue.qsize() + 1,
                 self._transmitter.remainingTransmitWorkload() + taskWorkload,
@@ -134,10 +137,10 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
     def _generateState(self, task: Task, datarate: int, localWorkload: int, localQueueSize: int,
                         localTransferWorkload: int, localTransferSize: int, localTransferQueueSize: int, 
                         remoteWorkload: int, remoteQueueSize: int):
-        normalTaskWorkload = Config.get("task_size_kBit") * Config.get("task_kflops_per_bit") * 10 ** 6
-        normalTaskSize = 10 ** 6
+        normalTaskWorkload = TaskGenerator.normalTaskWorkload()
+        normalTaskSize = TaskGenerator.normalTaskSize()
         if (Config.get("mode_workload_provided")):
-            return [task.size() / normalTaskSize, task.size() * task.workload() / normalTaskWorkload, datarate / normalTaskSize,
+            return [task.size() / normalTaskSize, task.workload() / normalTaskWorkload, datarate / normalTaskSize,
                     localWorkload / normalTaskWorkload, localQueueSize,
                     localTransferWorkload / normalTaskWorkload, localTransferSize / normalTaskSize, localTransferQueueSize,
                     remoteWorkload/normalTaskWorkload, remoteQueueSize]
@@ -168,7 +171,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
             raise ValueError("destination ids do not match, something most have gone wrong" +
                              "received dest id:" + str(destinationId) + ", mobile node dest id" +
                              str(self._edgeConnection.destNode()))
-        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id, task.size() * task.workload())
+        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id, task.workload())
         self._transmitter.transmitQueue().put(parcel)
         self._simulator.registerEvent(Common.time(), self._transmitter.id())
         #approximating the work load in edge by adding the current task to the last state report:
@@ -181,9 +184,9 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
     
     def _taskCompleted(self, task: Task) -> None:
         delay = Common.time() - task.arrivalTime()
-        self._transitionRecorder.completeTransition(task.id(), delay, task.powerConsumed)
-        if Logger.levelCanLog(2):
-            Logger.log("Run Complete: " + str(task), 2)
+        transition = self._transitionRecorder.completeTransition(task.id(), delay, task.powerConsumed)
+        Logger.log("Task Completed | Task: {task}".format(task=task), 2)
+        self._multiplexSelector.addToBuffer(transition)
     
     #Task Transmitter
     def fetchDestinationConnection(self, processId: int) -> Connection:

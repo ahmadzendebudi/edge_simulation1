@@ -4,7 +4,8 @@ from typing import Callable
 class Transition:
     def __init__(self, taskId: int, rewardFunction: Callable[['Transition'], float],
                  state1 = None, state2 = None, action = None, 
-                 delay: float = None, powerConsumed: float = None, completed = False) -> None:
+                 delay: float = None, powerConsumed: float = None, completed = False,
+                 taskWorkload = None) -> None:
         '''rewardFunction: (transition) -> reward'''
         self.taskId = taskId
         self.state1 = state1
@@ -14,6 +15,7 @@ class Transition:
         self.powerConsumed = powerConsumed
         self._rewardFunction = rewardFunction
         self.completed = completed
+        self.taskWorkload = taskWorkload
     
     def reward(self):
         return self._rewardFunction(self)
