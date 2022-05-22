@@ -1,7 +1,8 @@
 import json
 import numpy as np
 import tensorflow as tf
-
+from pathlib import Path
+    
 from simulator.core.simulator import Simulator
 from simulator import Config
 from simulator.environment.task_environment import TaskEnvironment
@@ -63,7 +64,8 @@ def runBatchSimulation(varients, runIdentifier):
 def runSimulation():
     Logger.unregisterAllOutPut()
     Logger.registerLogOutput(LogOutputConsolePrint())
-    Logger.registerLogOutput(LogOutputTextFile("log\log" + Common.simulationRunId() + ".log"))
+    Path("log").mkdir(parents=True, exist_ok=True)
+    Logger.registerLogOutput(LogOutputTextFile("log/log" + Common.simulationRunId() + ".log"))
     np.random.seed(Config.get('random_seed'))
     tf.random.set_seed(Config.get('random_seed'))
 
@@ -107,19 +109,24 @@ def runSimulation():
         
 #==========================================================================================
    
-runIdentifier = "3"
+runIdentifier = "2"
 
 varients = []
-varients.append({"step": 1, "config": "task_generator_lambda", "values": np.arange(0.1, 1.1, 0.1)})
+#varients.append({"step": 1, "config": "task_generator_lambda", "values": np.arange(0.1, 1.1, 0.1)})
+
+varients.append({"step": 1, "config": "task_generation_duration", "values": [200]})
+varients.append({"step": 1, "config": "boxworld_mobile_nodes", "values": [100]})
+varients.append({"step": 1, "config": "dql_lear ning_discount", "values": [0.1]})
 varients.append({"step": 1, "config": "edge_selector", "values": ["dql"]})
 varients.append({"step": 1, "config": "mobile_selector", "values": ["dql"]})
+varients.append({"step": 1, "config": "mode_workload_provided", "values": [False]})
+varients.append({"step": 1, "config": "mode_tasks_from_task_list", "values": [True]})
 
-varients.append({"step": 2, "config": "task_generator_lambda", "values": np.arange(0.1, 1.1, 0.1)})
+varients.append({"step": 2, "config": "task_generation_duration", "values": [200]})
+varients.append({"step": 2, "config": "boxworld_mobile_nodes", "values": [100]})
 varients.append({"step": 2, "config": "edge_selector", "values": ["greedy"]})
 varients.append({"step": 2, "config": "mobile_selector", "values": ["greedy"]})
-
-varients.append({"step": 3, "config": "task_generator_lambda", "values": np.arange(0.1, 1.1, 0.1)})
-varients.append({"step": 3, "config": "edge_selector", "values": ["local"]})
-varients.append({"step": 3, "config": "mobile_selector", "values": ["random"]})
+varients.append({"step": 2, "config": "mode_workload_provided", "values": [False]})
+varients.append({"step": 2, "config": "mode_tasks_from_task_list", "values": [True]})
 
 runBatchSimulation(varients, runIdentifier)

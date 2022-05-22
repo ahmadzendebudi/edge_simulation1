@@ -8,6 +8,8 @@ from simulator.common import Common
 from simulator.task_multiplexing import Transition
 from simulator.core import Task
 from simulator.core import Simulator
+from pathlib import Path
+
 class TransitionReporterItem:
     def __init__(self, task: Task, delay: float, powerConsumption: float, reward: float, action: int) -> None:
         self.task = task
@@ -37,6 +39,7 @@ class TransitionReporter:
         return sum(map(lambda t: t.powerConsumtion, self.transitionList))/len(self.transitionList)
     
     def pickle(self):
+        Path("reports").mkdir(parents=True, exist_ok=True)
         with open('reports/report' + self.name + Common.simulationRunId() + ".pkl", 'wb') as f:
             pickle.dump(self.transitionList, f)
             
