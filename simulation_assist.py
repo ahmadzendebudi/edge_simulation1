@@ -53,21 +53,28 @@ class SimulationAssist:
                     #Set up simulation id
                     Common.simulationResetRunId()
                     #Run simulation
-                    cls.runSimulation()
+                    cls.runSimulation(runIdentifier)
                     #Save a reference to simulation results for this run
                     reportMap.append({"runId": Common.simulationRunId(), "varient": values}) 
         
-            Path("results/reportMaps").mkdir(parents=True, exist_ok=True)
-            with open("results/reportMaps/reportMap{id}.json".format(id = runIdentifier), "a") as f:
-                f.truncate(0)
-                json.dump(reportMap, f)    
+                    Path("results/reportMaps").mkdir(parents=True, exist_ok=True)
+                    with open("results/reportMaps/reportMap{id}.json".format(id = runIdentifier), "a") as f:
+                        f.truncate(0)
+                        json.dump(reportMap, f)    
             
     @classmethod
-    def runSimulation(cls):
+    def runSimulation(cls, batchRunIdentifier = None):
         Logger.unregisterAllOutPut()
         Logger.registerLogOutput(LogOutputConsolePrint())
-        Path("results/log").mkdir(parents=True, exist_ok=True)
-        Logger.registerLogOutput(LogOutputTextFile("results/log/log" + Common.simulationRunId() + ".log"))
+        logPath = "results/log/"
+        reportPath = "results/report/"
+        if (batchRunIdentifier != None):
+            logPath += batchRunIdentifier + "/"
+            reportPath += batchRunIdentifier + "/"
+        Path(logPath).mkdir(parents=True, exist_ok=True)
+        Path(reportPath).mkdir(parents=True, exist_ok=True)
+            
+        Logger.registerLogOutput(LogOutputTextFile(logPath + "log" + Common.simulationRunId() + ".log"))
         np.random.seed(Config.get('random_seed'))
         tf.random.set_seed(Config.get('random_seed'))
 
@@ -81,9 +88,8 @@ class SimulationAssist:
         edgeReward, mobileReward = world.defaultRewards()
 
         simulator = Simulator()
-        Path("results/reports").mkdir(parents=True, exist_ok=True)
-        mobileReportPath = 'results/reports/reportmobile' + Common.simulationRunId() + ".pkl"
-        edgeReportPath = 'results/reports/reportedge' + Common.simulationRunId() + ".pkl"
+        mobileReportPath = reportPath + 'reportmobile' + Common.simulationRunId() + ".pkl"
+        edgeReportPath = reportPath + 'reportedge' + Common.simulationRunId() + ".pkl"
         mobileReporter = TransitionReporter(simulator, mobileReportPath) 
         edgeReporter = TransitionReporter(simulator, edgeReportPath) 
 

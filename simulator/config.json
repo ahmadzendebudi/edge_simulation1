@@ -51,7 +51,7 @@
     "dql_learning_discount": 0.8,
 
     "delay_coefficient": 1,
-    "power_coefficient": 3,
+    "power_coefficient": 1,
 
     "#boxworld": "box world values",
     "boxworld_mobile_nodes": 50,
