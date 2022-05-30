@@ -1,10 +1,5 @@
 import numpy as np
 import pandas as pd
 
-a = True
-if a:
-    b = 1
-else:
-    b = 2
-    
-print(b)
+df = pd.DataFrame([[1, 1, 1], [2, 2, 2], [3, 3, 3]])
+print(df[0] * df[1])
