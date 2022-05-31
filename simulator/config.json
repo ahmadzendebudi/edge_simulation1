@@ -1,5 +1,6 @@
 {
-    "task_generation_duration": 100,
+    "task_generation_duration": 300,
+    "dql_training_period": 100,
     "node_state_transmission_interval": 1,
     "task_generator_prefetch_time": 50,
     "task_generator_lambda": 0.5,
@@ -11,7 +12,7 @@
     "task_kflops_per_bit_sd": 500,
     "task_kflops_per_bit_min": 500,
     "task_kflops_per_bit_max": 5000,
-    "random_seed": 95783372,
+    "random_seed": 957833725,
     "initial_unique_id": 1,
     "state_parcel_size_per_variable_in_bits": 64,
     "task_result_parcel_size_in_bits": 1024,
@@ -45,13 +46,13 @@
 
     "#dql_parameters": "DQL parameters in this section",
     "dql_learning_rate": 0.001,
-    "dql_training_batch_size": 200,
-    "dql_training_interval": 5,
-    "dql_training_buffer_size": 10000,
-    "dql_learning_discount": 0.8,
+    "dql_training_batch_size": 1000,
+    "dql_training_interval": 10,
+    "dql_training_buffer_size": 100000,
+    "dql_learning_discount": 0.5,
 
     "delay_coefficient": 1,
-    "power_coefficient": 1,
+    "power_coefficient": 3,
 
     "#boxworld": "box world values",
     "boxworld_mobile_nodes": 50,

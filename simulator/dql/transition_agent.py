@@ -23,11 +23,16 @@ class TransitionAgent:
         self._createAgent()
         self._collectPolicy = policies.py_tf_eager_policy.PyTFEagerPolicy(
             self._agent.collect_policy, use_tf_function=True)
+        self._policy = policies.py_tf_eager_policy.PyTFEagerPolicy(
+            self._agent.policy, use_tf_function=True)
         super().__init__()
         
     
-    def action(self, timeStep: tj.TimeStep) -> tj.PolicyStep:
-        return self._collectPolicy.action(timeStep)
+    def action(self, timeStep: tj.TimeStep, collectPolicy = False) -> tj.PolicyStep:
+        if collectPolicy:
+            return self._collectPolicy.action(timeStep)
+        else:
+            return self._policy.action(timeStep)
     
     def qvalue(self, timeStep: tj.TimeStep):
         #TODO to be implemented

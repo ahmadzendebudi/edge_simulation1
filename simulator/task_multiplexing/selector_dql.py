@@ -4,6 +4,7 @@ from simulator.core.task import Task
 from simulator.dql.transition_agent import TransitionAgent
 from simulator.processes.task_multiplexer import TaskMultiplexerSelector
 from simulator import Config
+from simulator import Common
 from simulator import Logger
 
 import tensorflow as tf
@@ -27,11 +28,13 @@ class TaskMultiplexerSelectorDql(TaskMultiplexerSelector):
         self._transitionAgent = TransitionAgent(observation_spec, action_spec, bufferSize)
         self._trainInterval = trainInterval
         self._trainIntervalCounter = 0
+        self._trainingPeriod = Config.get("dql_training_period")
         super().__init__()
     
     def action(self, task: Task, state: Sequence[float]) -> tj.PolicyStep:
         timeStep = TaskMultiplexerSelectorDql._convertStateToTfTimeStep(state)
-        return self._transitionAgent.action(timeStep)
+        collectPolicy = Common.time() <= self._trainingPeriod
+        return self._transitionAgent.action(timeStep, collectPolicy)
     
     def select(self, actionStep) -> int:
         '''it will return none for local and 1 for remote execution'''
@@ -45,7 +48,7 @@ class TaskMultiplexerSelectorDql(TaskMultiplexerSelector):
         tfTransition = TaskMultiplexerSelectorDql._convertToTfTransition(transition)
         self._transitionAgent.addToBuffer(tfTransition)
         self._trainIntervalCounter += 1
-        if (self._trainIntervalCounter >= self._trainInterval):
+        if (self._trainIntervalCounter >= self._trainInterval and Common.time() <= self._trainingPeriod):
             self._trainIntervalCounter = 0
             self._train()
         Logger.log("addToBuffer, transition:" + str(transition), 2)
