@@ -1,7 +1,7 @@
 from simulation_assist import SimulationAssist
 
 
-runIdentifier = "D"
+runIdentifier = "E"
 
 varients = []
 #varients.append({"step": 1, "config": "task_generator_lambda", "values": np.arange(0.1, 1.1, 0.1)})

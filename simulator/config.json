@@ -49,7 +49,7 @@
     "dql_training_batch_size": 1000,
     "dql_training_interval": 10,
     "dql_training_buffer_size": 100000,
-    "dql_learning_discount": 0.5,
+    "dql_learning_discount": 0.8,
 
     "delay_coefficient": 1,
     "power_coefficient": 3,
