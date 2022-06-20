@@ -1,6 +1,6 @@
 
 from collections import deque
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 from simulator.config import Config
 from simulator.core.task import Task
 from simulator.logger import Logger
@@ -9,7 +9,8 @@ from simulator.task_multiplexing.transition import Transition
 
 
 class TaskMultiplexerSelectorGreedy(TaskMultiplexerSelector):
-    def __init__(self, state) -> None:
+    def __init__(self, state, rewardFunction: Callable[[Transition], float]) -> None:
+        super().__init__(rewardFunction)
         if Config.get("mode_workload_provided"):
             if (state == (10,)):
                 self._localFlops = Config.get("mobile_cpu_core_tflops") * 10 ** 12
@@ -71,7 +72,6 @@ class TaskMultiplexerSelectorGreedy(TaskMultiplexerSelector):
         self._powerCoefficient = Config.get("power_coefficient")
         self._normalTaskSize = 10 ** 6
         self._transitionBuffer = deque()
-        super().__init__()
         
     def action(self, task: Task, state: Sequence[float]) -> Any:
         #TODO make use of task
@@ -95,17 +95,16 @@ class TaskMultiplexerSelectorGreedy(TaskMultiplexerSelector):
             powerLocal = state[self._localQueueSizeIndex] * self._normalTaskWorkload * self._wattsPerFlop
             powerRemote = transfer * self._wattsPerTransmitSecond
             
-        return (self._delayCoefficient * localRun + self._powerCoefficient * powerLocal >
+        action = (self._delayCoefficient * localRun + self._powerCoefficient * powerLocal >
                 self._delayCoefficient * (transfer + remoteRun) + self._powerCoefficient *  powerRemote)
-            
-    
-    def select(self, action: Any) -> int:
-        if action == True:
-            return 1
-        else:
-            return None
         
-    def addToBuffer(self, transition: Transition) -> None:
+        if action == True:
+            return action, 1
+        else:
+            return action, None    
+    
+        
+    def _addToBuffer(self, transition: Transition) -> None:
         self._transitionBuffer.append(transition)
         if (len(self._transitionBuffer) > 2000):
             self._transitionBuffer.popleft()

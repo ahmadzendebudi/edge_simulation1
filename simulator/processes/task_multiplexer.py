@@ -41,8 +41,7 @@ class TaskMultiplexer(Process):
         state1 = self._stateHandler.fetchTaskInflatedState(task, self.id())
         recordTransition = False
         if task.hopLimit() > 0:
-            actionObject = self._selector.action(task, state1)
-            selection = self._selector.select(actionObject)
+            actionObject, selection = self._selector.action(task, state1)
             recordTransition = True
         if selection == None:
             task.addLog("local run(" + str(Common.time()) + ")")

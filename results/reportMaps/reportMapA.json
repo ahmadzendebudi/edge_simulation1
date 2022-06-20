@@ -1,1 +1,1 @@
-[{"runId": "0xcc8710062ae8a5a", "varient": [{"config": "edge_selector", "value": "dql"}, {"config": "mobile_selector", "value": "dql"}, {"config": "boxworld_mobile_nodes", "value": 50}, {"config": "task_generator_lambda", "value": 0.75}]}]
+[{"runId": "0x12763b8062afface", "varient": [{"config": "edge_selector", "value": "dql"}, {"config": "mobile_selector", "value": "dql"}, {"config": "boxworld_mobile_nodes", "value": 50}, {"config": "task_generator_lambda", "value": 0.75}]}]

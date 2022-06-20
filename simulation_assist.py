@@ -94,12 +94,12 @@ class SimulationAssist:
         edgeReporter = TransitionReporter(simulator, edgeReportPath) 
 
         selectors = {
-            "dql": lambda state: TaskMultiplexerSelectorDql(state, Config.get("dql_training_buffer_size"), 
+            "dql": lambda state, rewardFunction: TaskMultiplexerSelectorDql(state, rewardFunction, Config.get("dql_training_buffer_size"), 
                                                             Config.get("dql_training_interval")),
-            "local": lambda state: TaskMultiplexerSelectorLocal(),
-            "remote": lambda state: TaskMultiplexerSelectorRemote(),
-            "random": lambda state: TaskMultiplexerSelectorRandom(),
-            "greedy": lambda state: TaskMultiplexerSelectorGreedy(state)
+            "local": lambda state, rewardFunction: TaskMultiplexerSelectorLocal(rewardFunction),
+            "remote": lambda state, rewardFunction: TaskMultiplexerSelectorRemote(rewardFunction),
+            "random": lambda state, rewardFunction: TaskMultiplexerSelectorRandom(rewardFunction),
+            "greedy": lambda state, rewardFunction: TaskMultiplexerSelectorGreedy(state, rewardFunction)
         }
 
         

@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Sequence, Tuple
+from typing import Any, Callable, Sequence, Tuple
 from simulator.core.task import Task
 from simulator.dql.transition_agent import TransitionAgent
 from simulator.processes.task_multiplexer import TaskMultiplexerSelector
@@ -22,29 +22,28 @@ from simulator.task_multiplexing.transition import Transition
 
 class TaskMultiplexerSelectorDql(TaskMultiplexerSelector):
     
-    def __init__(self, stateShape: Tuple[int], bufferSize: int = 10000, trainInterval: int = 100) -> None:
+    def __init__(self, stateShape: Tuple[int], rewardFunction: Callable[[Transition], float], bufferSize: int = 10000, trainInterval: int = 100) -> None:
+        super().__init__(rewardFunction)
         observation_spec = specs.array_spec.BoundedArraySpec(stateShape, np.float32, minimum=0, name='observation')
         action_spec = specs.array_spec.BoundedArraySpec((), np.int32, 0, 1, 'action')
         self._transitionAgent = TransitionAgent(observation_spec, action_spec, bufferSize)
         self._trainInterval = trainInterval
         self._trainIntervalCounter = 0
         self._trainingPeriod = Config.get("dql_training_period")
-        super().__init__()
     
-    def action(self, task: Task, state: Sequence[float]) -> tj.PolicyStep:
+    def action(self, task: Task, state: Sequence[float]) -> Tuple[tj.PolicyStep, int]:
         timeStep = TaskMultiplexerSelectorDql._convertStateToTfTimeStep(state)
         collectPolicy = Common.time() <= self._trainingPeriod
-        return self._transitionAgent.action(timeStep, collectPolicy)
-    
-    def select(self, actionStep) -> int:
-        '''it will return none for local and 1 for remote execution'''
+        actionStep = self._transitionAgent.action(timeStep, collectPolicy)
         action = actionStep.action
+        '''it will return none for local and 1 for remote execution'''
         if action == 0:
-            return None
+            return actionStep, None
         else:
-            return action
+            return actionStep, action
+
     
-    def addToBuffer(self, transition: Transition):
+    def _addToBuffer(self, transition: Transition):
         tfTransition = TaskMultiplexerSelectorDql._convertToTfTransition(transition)
         self._transitionAgent.addToBuffer(tfTransition)
         self._trainIntervalCounter += 1

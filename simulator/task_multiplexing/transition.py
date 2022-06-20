@@ -2,8 +2,8 @@
 from typing import Callable
 
 class Transition:
-    def __init__(self, taskId: int, rewardFunction: Callable[['Transition'], float],
-                 state1 = None, state2 = None, action = None, 
+    def __init__(self, taskId: int, state1 = None, state2 = None, action = None, 
+                 rewardFunction: Callable[['Transition'], float] = None,
                  delay: float = None, powerConsumed: float = None, completed = False,
                  taskWorkload = None) -> None:
         '''rewardFunction: (transition) -> reward'''

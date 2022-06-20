@@ -31,22 +31,19 @@ class TaskMultiplexerSelectorMobile(TaskMultiplexerSelector):
     def __init__(self, innerSelector: TaskMultiplexerSelector, destId: int) -> None:
         self._innerSelector = innerSelector
         self._destId = destId
-        super().__init__()
+        super().__init__(innerSelector.rewardFunction())
     
-    def action(self, task: Task, state: Sequence[float]) -> Any:
-        return self._innerSelector.action(task, state)
-    
-    def select(self, action: Any) -> int:
-        selection = self._innerSelector.select(action)
+    def action(self, task: Task, state: Sequence[float]) -> Tuple[Any, int]:
+        action, selection = self._innerSelector.action(task, state)
         if selection == 1:
-            return self._destId
+            return action, self._destId
         elif selection == None or selection == 0:
-            return None
+            return action, None
         else:
             raise ValueError("output selection: " + str(selection) + " is not supported by this selector")
     
-    def addToBuffer(self, transition: Transition) -> None:
-        self._innerSelector.addToBuffer(transition)      
+    def _addToBuffer(self, transition: Transition) -> None:
+        self._innerSelector._addToBuffer(transition)      
             
 class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int,
@@ -124,7 +121,6 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
                 self._transmitQueue.qsize(),
                 self._edgeState[0], self._edgeState[1])
     
-    
     def fetchTaskInflatedState(self, task: Task, processId: int) -> Sequence[float]:
         taskWorkload = task.workload()
         return self._generateState(task, self._edgeConnection.datarate(),
@@ -156,7 +152,13 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
             return (10,)
         else:
             return (6,)
-    
+            
+    def recordTransition(self, task: Task, state1, state2, actionObject) -> None:
+        if (self._transitionRecorder != None):
+            transition = Transition(task.id(), state1, state2, actionObject, self._multiplexSelector.rewardFunction(),
+                                    taskWorkload=task.workload())
+            self._transitionRecorder.put(transition)
+
     #Task multiplexer plug:
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:
         return self._multiplexQueue
@@ -186,7 +188,10 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         delay = Common.time() - task.arrivalTime()
         transition = self._transitionRecorder.completeTransition(task.id(), delay, task.powerConsumed)
         Logger.log("Task Completed | Task: {task}".format(task=task), 2)
-        self._multiplexSelector.addToBuffer(transition)
+        if self._multiplexSelector.behaviour().trainLocal:
+            self._multiplexSelector.addToBuffer(transition)
+        elif self._multiplexSelector.behaviour().trainRemote:
+            pass#TODO
     
     #Task Transmitter
     def fetchDestinationConnection(self, processId: int) -> Connection:

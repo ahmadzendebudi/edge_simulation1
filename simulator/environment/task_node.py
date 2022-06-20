@@ -20,10 +20,6 @@ class TaskNode(Node, StateHandler, TaskRunnerPlug):
     def setTransitionRecorder(self, transitionRecorder: TransitionRecorder):
         self._transitionRecorder = transitionRecorder
     
-    def setRewardFunction(self, rewardFunction: Callable[[Transition], float]):
-        '''rewardFunction: (transition) -> reward'''
-        self._rewardFunction = rewardFunction
-    
     def currentWorkload(self):
         workload = TaskRunner.remainingWorkloadTaskQueue(self._localQueue)
         for taskRunner in self._taskRunners:
@@ -52,9 +48,8 @@ class TaskNode(Node, StateHandler, TaskRunnerPlug):
     
     def recordTransition(self, task: Task, state1, state2, actionObject) -> None:
         if (self._transitionRecorder != None):
-            if (self._rewardFunction == None):
-                raise ValueError("transition recorder is provided while reward function is None")
-            transition = Transition(task.id(), self._rewardFunction, state1, state2, actionObject,
+            transition = Transition(task.id(), state1, state2, actionObject,
                                     taskWorkload=task.workload())
             self._transitionRecorder.put(transition)
+    
     

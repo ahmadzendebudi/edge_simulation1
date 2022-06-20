@@ -10,16 +10,16 @@ from simulator.task_multiplexing.transition_recorder import Transition, TwoStepT
    
 class TaskEnvironment(Environment):
     def __init__(self, edgeNodes: dict[int, EdgeNode], mobileNodes: dict[int, MobileNode], 
-                 edgeSelectorGenerator: Callable[[Tuple[Any]], TaskMultiplexerSelector],
-                 mobileSelectorGenerator: Callable[[Tuple[Any]], TaskMultiplexerSelector],
+                 edgeSelectorGenerator: Callable[[Tuple[Any], Callable[[Transition], float]], TaskMultiplexerSelector],
+                 mobileSelectorGenerator: Callable[[Tuple[Any], Callable[[Transition], float]], TaskMultiplexerSelector],
                  edgeRewardFunction: Callable[[Transition], float] = None,
                  mobileRewardFunction: Callable[[Transition], float] = None) -> None:
         self._edgeNodes = edgeNodes
         self._mobileNodes = mobileNodes
         self._edgeRewardFunction = edgeRewardFunction
         self._mobileRewardFunction = mobileRewardFunction
-        self._moblie_multiplex_selector = mobileSelectorGenerator(MobileNode.fetchStateShape())
-        self._edge_multiplex_selector = edgeSelectorGenerator(EdgeNode.fetchStateShape())
+        self._moblie_multiplex_selector = mobileSelectorGenerator(MobileNode.fetchStateShape(), mobileRewardFunction)
+        self._edge_multiplex_selector = edgeSelectorGenerator(EdgeNode.fetchStateShape(), edgeRewardFunction)
     
     def initialize(self, simulator: Simulator, 
                    mobileTransitionWatchers: Collection[Callable[[Transition], Any]] = [],
@@ -33,17 +33,12 @@ class TaskEnvironment(Environment):
         for mobileNode in self._mobileNodes:
             mobileNode.initializeConnection(simulator)
         
-        for mobileNode in self._mobileNodes:
-            mobileNode.setTransitionRecorder(TwoStepTransitionRecorder(mobileTransitionWatchers))
-            mobileNode.setRewardFunction(self._mobileRewardFunction)
-        
-        for edgeNode in self._edgeNodes:
-            edgeNode.setTransitionRecorder(TwoStepTransitionRecorder(edgeTransitionWatchers))
-            edgeNode.setRewardFunction(self._edgeRewardFunction)
             
         for edgeNode in self._edgeNodes:
+            edgeNode.setTransitionRecorder(TwoStepTransitionRecorder(edgeTransitionWatchers))
             edgeNode.initializeProcesses(simulator, self._edge_multiplex_selector)
         for mobileNode in self._mobileNodes:
+            mobileNode.setTransitionRecorder(TwoStepTransitionRecorder(mobileTransitionWatchers))
             mobileNode.initializeProcesses(simulator, self._moblie_multiplex_selector)
         
     

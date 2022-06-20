@@ -15,6 +15,7 @@ from simulator.processes.task_generator import TaskGenerator
 from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug
 from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTransmitterPlug
 from simulator.task_multiplexing.selector import TaskMultiplexerSelector
+from simulator.task_multiplexing.transition import Transition
       
 class EdgeNodePlug:
     @abstractmethod
@@ -50,11 +51,11 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         if (duration != None):
             self._simulator.registerEvent(Common.time() + duration, self._connectionProcess.id())
         
-    def initializeProcesses(self, simulator: Simulator, multiplexSelector: TaskMultiplexerSelector):
+    def initializeProcesses(self, simulator: Simulator, edgeMultiplexSelector: TaskMultiplexerSelector):
         super().initializeProcesses(simulator)
         
-        self._multiplexSelector = multiplexSelector
-        self._taskMultiplexer = TaskMultiplexer(self, multiplexSelector, self)
+        self._multiplexSelector = edgeMultiplexSelector
+        self._taskMultiplexer = TaskMultiplexer(self, edgeMultiplexSelector, self)
         simulator.registerProcess(self._taskMultiplexer)
         self._multiplexQueue = TaskQueue()
         simulator.registerTaskQueue(self._multiplexQueue)
@@ -123,7 +124,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
             self._edgeStatesMap[content[0]] = [content[1], content[2]]
         else:
             raise RuntimeError("Parcel type not supported for edge node")
-            
+    
     #State handler:
     
     def _updateDestEdge(self, task: Task):
@@ -190,6 +191,12 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         else:
             return (7,)
     
+    def recordTransition(self, task: Task, state1, state2, actionObject) -> None:
+        if (self._transitionRecorder != None):
+            transition = Transition(task.id(), state1, state2, actionObject, self._multiplexSelector.rewardFunction(),
+                                    taskWorkload=task.workload())
+            self._transitionRecorder.put(transition)
+
     #Task multiplexer
     def fetchMultiplexerQueue(self, processId: int) -> TaskQueue:
         return self._multiplexQueue
