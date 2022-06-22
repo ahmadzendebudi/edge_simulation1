@@ -72,11 +72,13 @@ class ParcelTransmitter(Process):
         return remainingSize
     
     
-    def remainingTransmitWorkload(self):
+    def remainingTransmitTaskWorkload(self):
         remainingWorkload = 0
-        if (self._liveParcel != None and self._liveParcelCompletionTime <= Common.time()):
-            remainingWorkload += self._liveParcel.workload
+        if (self._liveParcel != None and self._liveParcel.type == Common.PARCEL_TYPE_TASK
+             and self._liveParcelCompletionTime <= Common.time()):
+            remainingWorkload += self._liveParcel.content.workload()
         for parcel in self._queue.deque():
-            remainingWorkload += parcel.workload
+            if (parcel.type == Common.PARCEL_TYPE_TASK):
+                remainingWorkload += parcel.content.workload()
             
         return remainingWorkload

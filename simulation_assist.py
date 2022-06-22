@@ -8,6 +8,7 @@ from simulator import Config
 from simulator.environment.task_environment import TaskEnvironment
 from simulator.logger import LogOutputConsolePrint, LogOutputTextFile, Logger
 from simulator.processes.task_generator import TaskGenerator
+from simulator.task_multiplexing.selector import MultiplexerSelectorBehaviour
 from simulator.world_builds.box_world import BoxWorld
 from simulator.reporters import TransitionReporter
 from simulator.task_multiplexing import TaskMultiplexerSelectorDql
@@ -93,9 +94,15 @@ class SimulationAssist:
         mobileReporter = TransitionReporter(simulator, mobileReportPath) 
         edgeReporter = TransitionReporter(simulator, edgeReportPath) 
 
+        behaviourRemote = MultiplexerSelectorBehaviour()
+        behaviourRemote.trainLocal = False
+        behaviourRemote.trainRemote = True
+
         selectors = {
             "dql": lambda state, rewardFunction: TaskMultiplexerSelectorDql(state, rewardFunction, Config.get("dql_training_buffer_size"), 
                                                             Config.get("dql_training_interval")),
+            "dql_remote": lambda state, rewardFunction: TaskMultiplexerSelectorDql(state, rewardFunction, Config.get("dql_training_buffer_size"), 
+                                                            Config.get("dql_training_interval"), behaviourRemote),
             "local": lambda state, rewardFunction: TaskMultiplexerSelectorLocal(rewardFunction),
             "remote": lambda state, rewardFunction: TaskMultiplexerSelectorRemote(rewardFunction),
             "random": lambda state, rewardFunction: TaskMultiplexerSelectorRandom(rewardFunction),

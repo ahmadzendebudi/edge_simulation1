@@ -9,6 +9,9 @@ class MultiplexerSelectorBehaviour:
     trainLocal = True
     trainRemote = False
 
+    def __str__(self) -> str:
+        return "trainLocal: " + str(self.trainLocal) + ", trainRemote: " + str(self.trainRemote)
+
 class MultiplexerSelectorModel:
     @abstractmethod
     def model(self) -> Any:

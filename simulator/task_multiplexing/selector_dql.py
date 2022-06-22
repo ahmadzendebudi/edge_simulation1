@@ -17,13 +17,15 @@ from tf_agents import utils
 from tf_agents import specs
 from tf_agents import policies
 import numpy as np
+from simulator.task_multiplexing.selector import MultiplexerSelectorBehaviour
 
 from simulator.task_multiplexing.transition import Transition
 
 class TaskMultiplexerSelectorDql(TaskMultiplexerSelector):
     
-    def __init__(self, stateShape: Tuple[int], rewardFunction: Callable[[Transition], float], bufferSize: int = 10000, trainInterval: int = 100) -> None:
-        super().__init__(rewardFunction)
+    def __init__(self, stateShape: Tuple[int], rewardFunction: Callable[[Transition], float], bufferSize: int = 10000,
+                 trainInterval: int = 100, behaviour: MultiplexerSelectorBehaviour = None) -> None:
+        super().__init__(rewardFunction, behaviour)
         observation_spec = specs.array_spec.BoundedArraySpec(stateShape, np.float32, minimum=0, name='observation')
         action_spec = specs.array_spec.BoundedArraySpec((), np.int32, 0, 1, 'action')
         self._transitionAgent = TransitionAgent(observation_spec, action_spec, bufferSize)

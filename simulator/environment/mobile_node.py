@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from collections import deque
+import sys
 from typing import Any, Callable, Sequence, Tuple
 
 from simulator.common import Common
@@ -31,7 +32,7 @@ class TaskMultiplexerSelectorMobile(TaskMultiplexerSelector):
     def __init__(self, innerSelector: TaskMultiplexerSelector, destId: int) -> None:
         self._innerSelector = innerSelector
         self._destId = destId
-        super().__init__(innerSelector.rewardFunction())
+        super().__init__(innerSelector.rewardFunction(), innerSelector.behaviour())
     
     def action(self, task: Task, state: Sequence[float]) -> Tuple[Any, int]:
         action, selection = self._innerSelector.action(task, state)
@@ -116,7 +117,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
     def fetchState(self, task: Task, processId: int) -> Sequence[float]:
         return self._generateState(task, self._edgeConnection.datarate(), 
                 self.currentWorkload(), self._localQueue.qsize(),
-                self._transmitter.remainingTransmitWorkload(),
+                self._transmitter.remainingTransmitTaskWorkload(),
                 self._transmitter.remainingTransmitSize(),
                 self._transmitQueue.qsize(),
                 self._edgeState[0], self._edgeState[1])
@@ -125,7 +126,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         taskWorkload = task.workload()
         return self._generateState(task, self._edgeConnection.datarate(),
                 self.currentWorkload() + taskWorkload, self._localQueue.qsize() + 1,
-                self._transmitter.remainingTransmitWorkload() + taskWorkload,
+                self._transmitter.remainingTransmitTaskWorkload() + taskWorkload,
                 self._transmitter.remainingTransmitSize() + task.size(),
                 self._transmitQueue.qsize() + 1,
                 self._edgeState[0], self._edgeState[1])
@@ -173,12 +174,9 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
             raise ValueError("destination ids do not match, something most have gone wrong" +
                              "received dest id:" + str(destinationId) + ", mobile node dest id" +
                              str(self._edgeConnection.destNode()))
-        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id, task.workload())
+        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id)
         self._transmitter.transmitQueue().put(parcel)
         self._simulator.registerEvent(Common.time(), self._transmitter.id())
-        #approximating the work load in edge by adding the current task to the last state report:
-        #no longer needed, as the task will either be in run queue or transmit queue and both are used for state
-        #self._edgeState = [self._edgeState[0] + task.size() * task.workload(), self._edgeState[1] + 1]
     
     #Task Runner:
     def taskRunComplete(self, task: Task, processId: int):
@@ -191,7 +189,10 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         if self._multiplexSelector.behaviour().trainLocal:
             self._multiplexSelector.addToBuffer(transition)
         elif self._multiplexSelector.behaviour().trainRemote:
-            pass#TODO
+            parcel = Parcel(Common.PARCEL_TYPE_TRANSITION, sys.getsizeof(transition), transition, self._id)
+            self._transmitter.transmitQueue().put(parcel)
+            self._simulator.registerEvent(Common.time(), self._transmitter.id())
+        
     
     #Task Transmitter
     def fetchDestinationConnection(self, processId: int) -> Connection:

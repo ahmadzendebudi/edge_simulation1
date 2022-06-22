@@ -18,8 +18,8 @@ class TaskEnvironment(Environment):
         self._mobileNodes = mobileNodes
         self._edgeRewardFunction = edgeRewardFunction
         self._mobileRewardFunction = mobileRewardFunction
-        self._moblie_multiplex_selector = mobileSelectorGenerator(MobileNode.fetchStateShape(), mobileRewardFunction)
-        self._edge_multiplex_selector = edgeSelectorGenerator(EdgeNode.fetchStateShape(), edgeRewardFunction)
+        self._mobileSelectorGenerator = mobileSelectorGenerator
+        self._edgeSelectorGenerator = edgeSelectorGenerator
     
     def initialize(self, simulator: Simulator, 
                    mobileTransitionWatchers: Collection[Callable[[Transition], Any]] = [],
@@ -33,13 +33,25 @@ class TaskEnvironment(Environment):
         for mobileNode in self._mobileNodes:
             mobileNode.initializeConnection(simulator)
         
-            
+        
+        edge_multiplex_selector = self._edgeSelectorGenerator(EdgeNode.fetchStateShape(), self._edgeRewardFunction)
+        moblie_multiplex_selector = self._mobileSelectorGenerator(MobileNode.fetchStateShape(), self._mobileRewardFunction)
+
         for edgeNode in self._edgeNodes:
             edgeNode.setTransitionRecorder(TwoStepTransitionRecorder(edgeTransitionWatchers))
-            edgeNode.initializeProcesses(simulator, self._edge_multiplex_selector)
+            if moblie_multiplex_selector.behaviour().trainLocal:
+                edgeNode.initializeProcesses(simulator, edge_multiplex_selector)
+            else:
+                edgeNode.initializeProcesses(simulator, edge_multiplex_selector, 
+                        self._mobileSelectorGenerator(MobileNode.fetchStateShape(), self._mobileRewardFunction))
+
+        
         for mobileNode in self._mobileNodes:
             mobileNode.setTransitionRecorder(TwoStepTransitionRecorder(mobileTransitionWatchers))
-            mobileNode.initializeProcesses(simulator, self._moblie_multiplex_selector)
+            if moblie_multiplex_selector.behaviour().trainLocal:
+                mobileNode.initializeProcesses(simulator, moblie_multiplex_selector)
+            else:
+                mobileNode.initializeProcesses(simulator, self._mobileSelectorGenerator(MobileNode.fetchStateShape(), self._mobileRewardFunction))
         
     
     def edgeNode(self, id: int) -> EdgeNode:
