@@ -13,13 +13,8 @@ class MultiplexerSelectorBehaviour:
         return "trainLocal: " + str(self.trainLocal) + ", trainRemote: " + str(self.trainRemote)
 
 class MultiplexerSelectorModel:
-    @abstractmethod
-    def model(self) -> Any:
-        pass
-
-    @abstractmethod
-    def size(self) -> int:
-        pass
+    model = None
+    size = None
 
 class TaskMultiplexerSelector:    
     

@@ -110,5 +110,13 @@ class TransitionAgent:
             activation=None)
         q_net = networks.sequential.Sequential(dense_layers + [q_values_layer])
         return q_net
+
+    def variables(self):
+        return self._agent._q_network.variables
+
+    def set_variables(self, variables):
+        for a, b in zip(self._agent._q_network.variables, variables):
+            a.assign(b)
+
     
     

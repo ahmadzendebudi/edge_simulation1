@@ -105,7 +105,8 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def _transmitNodeState(self):
         if Logger.levelCanLog(3):
             Logger.log("state transmission edgeId:" + str(self.id()), 3)
-            
+        
+        #Transmit state   
         content = [self.id(), self.currentWorkload(), self._localQueue.qsize()]
         Logger.log("edge load: " + str(content), 2)
         size = Config.get("state_parcel_size_per_variable_in_bits") * len(content)
@@ -114,6 +115,16 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
             transmitter = self._transmitterMap[destId]
             transmitter.transmitQueue().put(parcel)
             self._simulator.registerEvent(Common.time(), transmitter.id())
+        
+        #Transmit mobile ANN parameters
+        if self._mobileMultiplexSelector != None:
+            model = self._mobileMultiplexSelector.extractModel()
+            parcel = Parcel(Common.PARCEL_TYPE_ANN_PARAMS, model.size, model, self.id())
+            for connection in self._mobileConnections:
+                Logger.log("send model", 2)#TODO
+                transmitter = self._transmitterMap[connection.destNode()]
+                transmitter.transmitQueue().put(parcel)
+                self._simulator.registerEvent(Common.time(), transmitter.id())
         
     def _receiveParcel(self, parcel: Parcel) -> bool:
         if parcel.type == Common.PARCEL_TYPE_TASK:
@@ -132,7 +143,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
             transition = parcel.content
             self._mobileMultiplexSelector.addToBuffer(transition)
             #forward transition if it was received by a mobile node
-            if any(map(lambda connection: connection.destNode() == parcel.senderNodeId, self._mobileConnections)):
+            if not any(map(lambda connection: connection.destNode() == parcel.senderNodeId, self._edgeConnections)):
                 for connection in self._edgeConnections:
                     parcel = Parcel(Common.PARCEL_TYPE_TRANSITION, sys.getsizeof(transition), transition, self._id)
                     transmitter = self._transmitterMap[connection.destNode()]

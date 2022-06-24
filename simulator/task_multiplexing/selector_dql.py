@@ -1,4 +1,5 @@
 from abc import abstractmethod
+import sys
 from typing import Any, Callable, Sequence, Tuple
 from simulator.core.task import Task
 from simulator.dql.transition_agent import TransitionAgent
@@ -17,7 +18,7 @@ from tf_agents import utils
 from tf_agents import specs
 from tf_agents import policies
 import numpy as np
-from simulator.task_multiplexing.selector import MultiplexerSelectorBehaviour
+from simulator.task_multiplexing.selector import MultiplexerSelectorBehaviour, MultiplexerSelectorModel
 
 from simulator.task_multiplexing.transition import Transition
 
@@ -85,4 +86,13 @@ class TaskMultiplexerSelectorDql(TaskMultiplexerSelector):
                                             observation=observation2, discount=cls.discountnp)
         action_step = transition.action
         return tj.Transition(time_step1, action_step, time_step2)
+
+    def extractModel(self) -> MultiplexerSelectorModel:
+        model = MultiplexerSelectorModel()
+        model.model = self._transitionAgent.variables()
+        model.size = sys.getsizeof(model.model) #TODO check to see if it works correctly
+        return model
+    
+    def setModel(self, model: MultiplexerSelectorModel):
+        self._transitionAgent.set_variables(model.model)
     

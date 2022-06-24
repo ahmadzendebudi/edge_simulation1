@@ -44,6 +44,7 @@ class TaskEnvironment(Environment):
             else:
                 edgeNode.initializeProcesses(simulator, edge_multiplex_selector, 
                         self._mobileSelectorGenerator(MobileNode.fetchStateShape(), self._mobileRewardFunction))
+                #edgeNode.initializeProcesses(simulator, edge_multiplex_selector, moblie_multiplex_selector)
 
         
         for mobileNode in self._mobileNodes:

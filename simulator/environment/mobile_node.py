@@ -13,6 +13,7 @@ from simulator.core.simulator import Simulator
 from simulator.core.task_queue import TaskQueue
 from simulator.core.task import Task
 from simulator.environment.task_node import TaskNode
+from simulator.task_multiplexing.selector import MultiplexerSelectorModel
 from simulator.task_multiplexing.transition import Transition
 from simulator.task_multiplexing.transition_recorder import TransitionRecorder
 from simulator.logger import Logger
@@ -44,7 +45,13 @@ class TaskMultiplexerSelectorMobile(TaskMultiplexerSelector):
             raise ValueError("output selection: " + str(selection) + " is not supported by this selector")
     
     def _addToBuffer(self, transition: Transition) -> None:
-        self._innerSelector._addToBuffer(transition)      
+        return self._innerSelector._addToBuffer(transition)
+
+    def setModel(self, model: MultiplexerSelectorModel):
+        return self._innerSelector.setModel(model)   
+
+    def extractModel(self) -> MultiplexerSelectorModel:
+        return self._innerSelector.extractModel()
             
 class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int,
@@ -221,6 +228,10 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
                 raise ValueError("Mobile node (id: " + str(self.id()) +
                                  ") received task result belonging to another mobile node with id:" + str(task.nodeId()))
             self._taskCompleted(task)
+        elif (parcel.type == Common.PARCEL_TYPE_ANN_PARAMS):
+            model = parcel.content
+            Logger.log("save model", 0)#TODO
+            self._multiplexSelector.setModel(model)
         else:
             raise ValueError("Parcel type: " + str(parcel.type) + " not supported by mobile node")
     
