@@ -87,7 +87,7 @@ class TransitionAgent:
     
     def _qNetwork(self) -> network.Network:
         #fc_layer_params = (100, 100, 50, 20)
-        fc_layer_params = (50, 20)
+        fc_layer_params = (128, 128)
         action_tensor_spec = self._actionTensorSpec()
         num_actions = action_tensor_spec.maximum - action_tensor_spec.minimum + 1
 
