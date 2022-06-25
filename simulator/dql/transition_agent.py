@@ -43,8 +43,6 @@ class TransitionAgent:
             
     def train(self) -> None:
         experience = self._buffer.sampleExperiences(Config.get("dql_training_batch_size"))
-        #print(experience)
-        #raise RuntimeError()
         train_loss = self._agent.train(experience, None).loss
         if hasattr(self, '_trainCount'):
             self._trainCount += 1
