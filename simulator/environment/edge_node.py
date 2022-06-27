@@ -116,7 +116,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
         
     def _receiveParcel(self, parcel: Parcel) -> bool:
         if parcel.type == Common.PARCEL_TYPE_PACKAGE:
-            pass #TODO
+            self._router.receivePackage(parcel)
         elif parcel.type == Common.PARCEL_TYPE_TASK:
             task = parcel.content
             task.powerConsumed += parcel.powerConsumed

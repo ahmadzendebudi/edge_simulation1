@@ -203,7 +203,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
     #Node:
     def _receiveParcel(self, parcel: Parcel) -> bool:
         if parcel.type == Common.PARCEL_TYPE_PACKAGE:
-            pass #TODO
+            self._router.receivePackage(parcel)
         elif (parcel.type == Common.PARCEL_TYPE_NODE_STATE):
             content = parcel.content
             if (len(content) != 3):
