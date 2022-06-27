@@ -26,10 +26,6 @@ class RouterEdgePlug:
         """It should retreive true if nodeId is a node we most send parcels to."""
         pass
 
-    @abstractmethod
-    def sendRoutedParcel(self, parcel: Parcel, destId: int):
-        pass
-
 class NodeItem:
     def __init__(self, connection: Connection, transmitter: ParcelTransmitter) -> None:
         self.connection = connection
@@ -43,8 +39,10 @@ class RouterEdge(Process, ParcelTransmitterPlug):
         self._routeMap = {}
         self._mobileNodeMap: Dict[int, NodeItem] = {}
         self._edgeNodeMap: Dict[int, NodeItem] = {}
+        self._transmitterIdToDestNodeIdMap: Dict[int, int] = {}
 
     def updateConnections(self, mobileConnections: Sequence[Connection], edgeConnections: Sequence[Connection]):
+        self._transmitterIdToDestNodeIdMap.clear()
         #update mobile connections:
         mobileUpdateSet = set(map(lambda connection: connection.destNode(), mobileConnections))
         mobileCurrentSet = set(self._mobileNodeMap.keys())
@@ -54,37 +52,52 @@ class RouterEdge(Process, ParcelTransmitterPlug):
             #TODO we need to do something about the items in the corresponding transmission
             self._simulator.unregisterProcess(transmitter.id())
             del self._mobileNodeMap[nodeId]
-        pass
+        
         for connection in mobileConnections:
             nodeItem = self._mobileNodeMap.get(connection.destNode(), None)
             if nodeItem != None:
                 nodeItem.connection = connection
+                transmitter = nodeItem.transmitter
             else:
                 transmitQueue = ParcelQueue()
                 self._simulator.registerParcelQueue(transmitQueue)
                 transmitter = ParcelTransmitter(self._simulator, transmitQueue, self)
                 self._simulator.registerProcess(transmitter)
                 self._mobileNodeMap[connection.destNode()] = NodeItem(connection, transmitter)
+            
+            self._transmitterIdToDestNodeIdMap[transmitter.id()] = connection.destNode()
 
         #update edge connections:
         edgeUpdateSet = set(map(lambda connection: connection.destNode(), edgeConnections))
         edgeCurrentSet = set(self._edgeNodeMap.keys())
-        if edgeCurrentSet != edgeUpdateSet:
-            raise "Changing edge connections is not supported yet"        
+        dropSet = edgeCurrentSet.difference(edgeUpdateSet)
+        if len(dropSet) != 0:
+            raise "Removing edge connections is not supported yet"
+        
         for connection in edgeConnections:
-            nodeItem = self._edgeNodeMap[connection.destNode()]
-            nodeItem.connection = connection
-
+            nodeItem = self._edgeNodeMap.get(connection.destNode(), None)
+            if nodeItem != None:
+                nodeItem.connection = connection
+                transmitter = nodeItem.transmitter
+            else:
+                transmitQueue = ParcelQueue()
+                self._simulator.registerParcelQueue(transmitQueue)
+                transmitter = ParcelTransmitter(self._simulator, transmitQueue, self)
+                self._simulator.registerProcess(transmitter)
+                self._edgeNodeMap[connection.destNode()] = NodeItem(connection, transmitter)
+            
+            self._transmitterIdToDestNodeIdMap[transmitter.id()] = connection.destNode()
+    
 
     def sendParcel(self, parcel: Parcel) -> Parcel:
         destId = parcel.destNodeId
-        nodeItem = self._mobileNodeMap.get(destId, None)
-        if nodeItem == None:
+        transmitter = self.getTransmitter(destId)
+        if transmitter == None:
             #TODO check the routes if this parcel can be sent as package, otherwise halt the send for later
             pass
         else:
-            nodeItem.transmitter.transmitQueue().put(parcel)
-            self._simulator.registerEvent(Common.time(), nodeItem.transmitter.id())
+            transmitter.transmitQueue().put(parcel)
+            self._simulator.registerEvent(Common.time(), transmitter.id())
         pass
 
     def receivePackage(self, parcel: Parcel) -> int:
@@ -98,15 +111,42 @@ class RouterEdge(Process, ParcelTransmitterPlug):
             #TODO send the package to all neighboring edges after adding this node id to route
         elif package.type == Package.PACKAGE_TYPE_PAYLOAD:
             pass
+    
+    def getAllConnections(self):
+        return map(lambda nodeItem: nodeItem.connection, list(self._mobileNodeMap.values()) + list(self._edgeNodeMap.values()))
+
+    def getEdgeConnections(self):
+        return map(lambda nodeItem: nodeItem.connection, self._edgeNodeMap.values())
+    
+    def getMobileConnections(self):
+        return map(lambda nodeItem: nodeItem.connection, self._mobileNodeMap.values())
+
+    def getConnection(self, destId: int) -> Connection:
+        nodeItem = self._getNodeItem(destId)
+        if nodeItem == None:
+            return None
+        else:
+            return nodeItem.connection
+
+    def getConnectionByTransmitterId(self, transmitterId: int) -> Connection:
+        destNodeId = self._transmitterIdToDestNodeIdMap[transmitterId]
+        return self.getConnection(destNodeId)
 
     def getTransmitter(self, destId: int) -> ParcelTransmitter:
-        transmitter = self._mobileNodeMap.get(destId, None)
-        if transmitter == None:
-            transmitter = self._edgeNodeMap.get(destId, None)
-        return transmitter
-        
+        nodeItem = self._getNodeItem(destId)
+        if nodeItem == None:
+            return None
+        else:
+            return nodeItem.transmitter
+
+    def _getNodeItem(self, destId: int) -> NodeItem:
+        nodeItem = self._mobileNodeMap.get(destId, None)
+        if nodeItem == None:
+            nodeItem = self._edgeNodeMap.get(destId, None)
+        return nodeItem
+
     def fetchDestinationConnection(self, processId: int) -> Connection:
-        pass
+        return self.getConnectionByTransmitterId(processId)
     
     def parcelTransmissionComplete(self, parcel: Parcel, processId: int) -> int:
         pass#TODO how about you actually do the tensmission before calling this?

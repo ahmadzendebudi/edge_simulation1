@@ -39,19 +39,24 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
     
     def initializeConnection(self, simulator: Simulator):
         self._simulator = simulator
-        self._edgeConnections, self._mobileConnections, duration = self._plug.updateEdgeNodeConnections(self.id(), self.externalId())
-        self._connectionProcess = Process()
-        self._connectionProcess.wake = self.updateConnections
-        simulator.registerProcess(self._connectionProcess)
-        if (duration != None):
-            simulator.registerEvent(Common.time() + duration, self._connectionProcess.id())
         
-        self._nodeConnectionMap = {}
-        for connection in (self._edgeConnections + self._mobileConnections):
-            self._nodeConnectionMap[connection.destNode()] = connection
+        #router:
+        self._router = RouterEdge(simulator, self.id(), self)
+        simulator.registerProcess(self._router)
+
+        edgeConnections, mobileConnections, duration = self._plug.updateEdgeNodeConnections(self.id(), self.externalId())
+        self._router.updateConnections(mobileConnections, edgeConnections)
+        
+        if (duration != None):
+            self._connectionProcess = Process()
+            self._connectionProcess.wake = self.updateConnections
+            simulator.registerProcess(self._connectionProcess)
+            simulator.registerEvent(Common.time() + duration, self._connectionProcess.id())
     
     def updateConnections(self):
-        self._edgeConnections, self._mobileConnections, duration = self._plug.updateEdgeNodeConnections(self.id(), self.externalId())
+        edgeConnections, mobileConnections, duration = self._plug.updateEdgeNodeConnections(self.id(), self.externalId())
+        self._router.updateConnections(mobileConnections, edgeConnections)
+        
         if (duration != None):
             self._simulator.registerEvent(Common.time() + duration, self._connectionProcess.id())
         
@@ -69,23 +74,6 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
         
         self._taskIdToSenderIdMap = {}
         
-        #router:
-        self._router = RouterEdge(simulator, self.id(), self)
-        simulator.registerProcess(self._router)
-
-        #transmitter processes:
-        self._transmitterMap = {}
-        self._transmitterIdToDestNodeIdMap = {}
-        for nodeId in self._nodeConnectionMap.keys():
-            transmitQueue = ParcelQueue()
-            simulator.registerParcelQueue(transmitQueue)
-            
-            transmitter = ParcelTransmitter(self._simulator, transmitQueue, self)
-            simulator.registerProcess(transmitter)
-            
-            self._transmitterMap[nodeId] = transmitter
-            
-            self._transmitterIdToDestNodeIdMap[transmitter.id()] = nodeId
         
         self._lastTransmitEmptyQueues = False
         '''indicates if the local and multiplex queues while sending the last states were empty'''
@@ -115,14 +103,14 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
         content = [self.id(), self.currentWorkload(), self._localQueue.qsize()]
         Logger.log("edge load: " + str(content), 2)
         size = Config.get("state_parcel_size_per_variable_in_bits") * len(content)
-        for destId in self._nodeConnectionMap.keys():
-            parcel = Parcel(Common.PARCEL_TYPE_NODE_STATE, size, content, self.id(), destId)
+        for connection in self._router.getAllConnections():
+            parcel = Parcel(Common.PARCEL_TYPE_NODE_STATE, size, content, self.id(), connection.destNode())
             self._router.sendParcel(parcel)
         
         #Transmit mobile ANN parameters
         if self._mobileMultiplexSelector != None:
             model = self._mobileMultiplexSelector.extractModel()
-            for connection in self._mobileConnections:
+            for connection in self._router.getMobileConnections():
                 parcel = Parcel(Common.PARCEL_TYPE_ANN_PARAMS, model.size, model, self.id(), connection.destNode())
                 self._router.sendParcel(parcel)
         
@@ -145,8 +133,8 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
             transition = parcel.content
             self._mobileMultiplexSelector.addToBuffer(transition)
             #forward transition if it was received by a mobile node
-            if not any(map(lambda connection: connection.destNode() == parcel.senderNodeId, self._edgeConnections)):
-                for connection in self._edgeConnections:
+            if not any(map(lambda connection: connection.destNode() == parcel.senderNodeId, self._router.getEdgeConnections())):
+                for connection in self._router.getEdgeConnections():
                     parcel = Parcel(Common.PARCEL_TYPE_TRANSITION, sys.getsizeof(transition), transition, self._id, connection.destNode())
                     self._router.sendParcel(parcel)
         else:
@@ -165,7 +153,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
                     minValue = value[index]
                     destId = id 
         self._destEdgeId = destId
-        Logger.log("updated dest (" + str(self.id()) + "edge: id: " + str(self._destEdgeId) + " value: " + str(value), 3)
+        Logger.log("updated dest (" + str(self.id()) + "edge: id: " + str(self._destEdgeId) + " value: " + str(minValue), 3)
         #TODO Instead of workload, it should be updated whenever state is fetched
     
     def fetchState(self, task: Task, processId: int) -> Sequence[float]:
@@ -173,7 +161,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
         edgeState = self._edgeStatesMap[self._destEdgeId]
         transmitter = self._router.getTransmitter(self._destEdgeId)
         transmitQueue = transmitter.transmitQueue()
-        return self._generateState(task, self._nodeConnectionMap[self._destEdgeId].datarate(),
+        return self._generateState(task, self._router.getConnection(self._destEdgeId).datarate(),
                 self.currentWorkload(), self._localQueue.qsize(),
                 transmitter.remainingTransmitTaskWorkload(),
                 transmitter.remainingTransmitSize(),
@@ -186,7 +174,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
         taskWorkload = task.workload()
         transmitter = self._router.getTransmitter(self._destEdgeId)
         transmitQueue = transmitter.transmitQueue()
-        return self._generateState(task, self._nodeConnectionMap[self._destEdgeId].datarate(),
+        return self._generateState(task, self._router.getConnection(self._destEdgeId).datarate(),
                 self.currentWorkload() + taskWorkload, self._localQueue.qsize() + 1,
                 transmitter.remainingTransmitTaskWorkload() + taskWorkload,
                 transmitter.remainingTransmitSize() + task.size(),
@@ -253,16 +241,10 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
         parcel = Parcel(Common.PARCEL_TYPE_TASK_RESULT, size, task, self.id(), taskSenderNodeId)
         self._router.sendParcel(parcel)
     
-    #Task transmission    
-    def fetchDestinationConnection(self, processId: int) -> Connection:
-        destNodeId = self._transmitterIdToDestNodeIdMap[processId]
-        return self._nodeConnectionMap[destNodeId]
-    
-    def parcelTransmissionComplete(self, task: Task, processId: int) -> int:
-        pass #Nothing to do here, I can add a log if needed
-    
-    
-    
+    #Router
+    def isNodeOfInterest(self, nodeId) -> bool:
+        raise "Not implemented"#TODO
+
     def wakeTaskRunnerAt(self, time: int, processId: int):
         return super().wakeTaskRunnerAt(time, processId)
     
