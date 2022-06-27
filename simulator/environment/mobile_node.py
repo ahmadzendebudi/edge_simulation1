@@ -61,9 +61,6 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         self._edgeState = [0, 0]
         super().__init__(externalId, flops, cores, metteredPowerConsumtionPerTFlops)
     
-    def edgeConnection(self) -> Connection:
-        self._edgeConnection
-    
     def initializeConnection(self, simulator: Simulator):
         self._simulator = simulator
 
@@ -71,17 +68,19 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         self._router = RouterMobile(simulator, self.id())
         simulator.registerProcess(self._router)
 
-        self._edgeConnection, duration = self._plug.updateMobileNodeConnection(self.id(), self.externalId())
+        edgeConnection, duration = self._plug.updateMobileNodeConnection(self.id(), self.externalId())
         self._router.updateConnection(edgeConnection)
 
-        self._connectionProcess = Process()
-        self._connectionProcess.wake = self.updateConnection
-        simulator.registerProcess(self._connectionProcess)
         if (duration != None):
+            self._connectionProcess = Process()
+            self._connectionProcess.wake = self.updateConnection
+            simulator.registerProcess(self._connectionProcess)
             simulator.registerEvent(Common.time() + duration, self._connectionProcess.id())
     
     def updateConnection(self):
-        self._edgeConnection, duration = self._plug.updateMobileNodeConnection(self.id(), self.externalId())
+        edgeConnection, duration = self._plug.updateMobileNodeConnection(self.id(), self.externalId())
+        self._router.updateConnection(edgeConnection)
+
         if (duration != None):
             self._simulator.registerEvent(Common.time() + duration, self._connectionProcess.id())
         
@@ -96,17 +95,11 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         self._taskGenerator = TaskGenerator(self)
         simulator.registerProcess(self._taskGenerator)
         
-        self._multiplexSelector = TaskMultiplexerSelectorMobile(
-            multiplexSelector, self._edgeConnection.destNode())
+        self._multiplexSelector = multiplexSelector
         self._taskMultiplexer = TaskMultiplexer(self, self._multiplexSelector, self)
         simulator.registerProcess(self._taskMultiplexer)
         self._multiplexQueue = TaskQueue()
         simulator.registerTaskQueue(self._multiplexQueue)
-        
-        self._transmitQueue = ParcelQueue()
-        simulator.registerParcelQueue(self._transmitQueue)
-        self._transmitter = ParcelTransmitter(self._simulator, self._transmitQueue, self)
-        simulator.registerProcess(self._transmitter)
         
     #Task Distributer
     def registerTask(self, time: int, processId: int) -> None:
@@ -130,20 +123,20 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
     
     #State handler:
     def fetchState(self, task: Task, processId: int) -> Sequence[float]:
-        return self._generateState(task, self._edgeConnection.datarate(), 
+        return self._generateState(task, self._router.getConnection().datarate(), 
                 self.currentWorkload(), self._localQueue.qsize(),
-                self._transmitter.remainingTransmitTaskWorkload(),
-                self._transmitter.remainingTransmitSize(),
-                self._transmitQueue.qsize(),
+                self._router.getTransmitter().remainingTransmitTaskWorkload(),
+                self._router.getTransmitter().remainingTransmitSize(),
+                self._router.getTransmitter().transmitQueue().qsize(),
                 self._edgeState[0], self._edgeState[1])
     
     def fetchTaskInflatedState(self, task: Task, processId: int) -> Sequence[float]:
         taskWorkload = task.workload()
-        return self._generateState(task, self._edgeConnection.datarate(),
+        return self._generateState(task, self._router.getConnection().datarate(),
                 self.currentWorkload() + taskWorkload, self._localQueue.qsize() + 1,
-                self._transmitter.remainingTransmitTaskWorkload() + taskWorkload,
-                self._transmitter.remainingTransmitSize() + task.size(),
-                self._transmitQueue.qsize() + 1,
+                self._router.getTransmitter().remainingTransmitTaskWorkload() + taskWorkload,
+                self._router.getTransmitter().remainingTransmitSize() + task.size(),
+                self._router.getTransmitter().transmitQueue().qsize() + 1,
                 self._edgeState[0], self._edgeState[1])
     
     def _generateState(self, task: Task, datarate: int, localWorkload: int, localQueueSize: int,
@@ -185,13 +178,8 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
             self._simulator.registerEvent(Common.time(), taskRunner.id())
     
     def taskTransimission(self, task: Task, processId: int, destinationId: int) -> None:
-        if self._edgeConnection.destNode() != destinationId:
-            raise ValueError("destination ids do not match, something most have gone wrong" +
-                             "received dest id:" + str(destinationId) + ", mobile node dest id" +
-                             str(self._edgeConnection.destNode()))
-        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id, self._edgeConnection.destNode())
-        self._transmitter.transmitQueue().put(parcel)
-        self._simulator.registerEvent(Common.time(), self._transmitter.id())
+        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id, self._router.getConnection().destNode())
+        self._router.sendParcel(parcel)
     
     #Task Runner:
     def taskRunComplete(self, task: Task, processId: int):
@@ -204,9 +192,8 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         if self._multiplexSelector.behaviour().trainLocal:
             self._multiplexSelector.addToBuffer(transition)
         elif self._multiplexSelector.behaviour().trainRemote:
-            parcel = Parcel(Common.PARCEL_TYPE_TRANSITION, sys.getsizeof(transition), transition, self._id, self._edgeConnection.destNode())
-            self._transmitter.transmitQueue().put(parcel)
-            self._simulator.registerEvent(Common.time(), self._transmitter.id())
+            parcel = Parcel(Common.PARCEL_TYPE_TRANSITION, sys.getsizeof(transition), transition, self._id, self._router.getConnection().destNode())
+            self._router.sendParcel(parcel)
         
     
     #Router:
@@ -215,12 +202,14 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
     
     #Node:
     def _receiveParcel(self, parcel: Parcel) -> bool:
-        if (parcel.type == Common.PARCEL_TYPE_NODE_STATE):
+        if parcel.type == Common.PARCEL_TYPE_PACKAGE:
+            pass #TODO
+        elif (parcel.type == Common.PARCEL_TYPE_NODE_STATE):
             content = parcel.content
             if (len(content) != 3):
                 raise ValueError("State update content: " + str(content) + " not supported by mobile node")
             
-            if (content[0] == self._edgeConnection.destNode()):
+            if (content[0] == self._router.getConnection().destNode()):
                 self._edgeState = content[1:]
                 if Logger.levelCanLog(3):
                     Logger.log("mobile id: " + str(self.id()) + " state update: " + str(self.fetchState(None)), 3)
