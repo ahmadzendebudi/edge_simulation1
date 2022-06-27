@@ -1,6 +1,7 @@
 
 
 from abc import abstractmethod
+from typing import Sequence
 import numpy as np
 from simulator.common import Common
 from simulator.core.connection import Connection
@@ -82,3 +83,9 @@ class ParcelTransmitter(Process):
                 remainingWorkload += parcel.content.workload()
             
         return remainingWorkload
+
+    def allParcels(self) -> Sequence[Parcel]:
+        parcels = list(self._queue.deque())
+        if self._liveParcel != None:
+            parcels.append(self._liveParcel)
+        return parcels

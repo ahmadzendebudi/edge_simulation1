@@ -19,6 +19,8 @@
     "connection_actual_datarate_low": 0.5,
     "connection_actual_datarate_high": 1.5,
 
+    "router_route_broadcast_record_lifespan": 10,
+
     "task_from_task_list_listsize": 10,
 
     "mode_workload_provided": false,

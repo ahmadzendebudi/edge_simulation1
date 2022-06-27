@@ -19,11 +19,12 @@ class RouterMobile(Process, ParcelTransmitterPlug):
         self._plug = plug
         self._connection = None
         self._transmitter = None
-
     def updateConnection(self, mobileConnection: Connection):
         if self._connection != None and self._connection.destNode() != mobileConnection.destNode():
-            #TODO send a broadcast of the new edge connection
-            pass
+            package = Package(Package.PACKAGE_TYPE_ROUTING, self._nodeId, None, self._getSequentialId(), (self._nodeId,))
+            parcel = Parcel(Common.PARCEL_TYPE_PACKAGE, package.size(), package, self._nodeId, self._connection.destNode())
+            self.sendParcel(parcel)
+            #TODO current transmission can either continue or cancel and restart with this new edge
         self._connection = mobileConnection
         if self._transmitter == None:
             transmitQueue = ParcelQueue()
@@ -65,3 +66,10 @@ class RouterMobile(Process, ParcelTransmitterPlug):
     
     def parcelTransmissionComplete(self, parcel: Parcel, processId: int) -> int:
         pass #Nothing to do here, I can add a log if needed
+
+    
+    def _getSequentialId(self):
+        if not hasattr(self, "_lastSequentialId"):
+            self._lastSequentialId = 0
+        self._lastSequentialId += 1
+        return self._lastSequentialId
