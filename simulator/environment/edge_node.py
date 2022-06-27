@@ -245,6 +245,9 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
     def isNodeOfInterest(self, nodeId) -> bool:
         raise "Not implemented"#TODO
 
+    def receiveRoutedParcel(self, parcel: Parcel):
+        self._receiveParcel(parcel)
+
     def wakeTaskRunnerAt(self, time: int, processId: int):
         return super().wakeTaskRunnerAt(time, processId)
     

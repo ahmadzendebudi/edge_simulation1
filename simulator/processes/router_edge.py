@@ -7,18 +7,7 @@ from simulator.core.parcel_queue import ParcelQueue
 from simulator.core.process import Process
 from simulator.core.simulator import Simulator
 from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTransmitterPlug
-
-class Package:
-    PACKAGE_TYPE_PAYLOAD = 0
-    PACKAGE_TYPE_ROUTING = 1
-
-    def __init__(self, type, originId, destId, packageId, route:Sequence[int], content:Parcel = None) -> None:
-        self.type = type
-        self.originId = originId
-        self.destId = destId
-        self.packageId = packageId
-        self.content = content
-        self.route = route
+from simulator.processes import Package
 
 class RouterEdgePlug:
     @abstractmethod
@@ -26,6 +15,9 @@ class RouterEdgePlug:
         """It should retreive true if nodeId is a node we most send parcels to."""
         pass
 
+    @abstractmethod
+    def receiveRoutedParcel(self, parcel: Parcel):
+        pass
 class NodeItem:
     def __init__(self, connection: Connection, transmitter: ParcelTransmitter) -> None:
         self.connection = connection
@@ -110,7 +102,7 @@ class RouterEdge(Process, ParcelTransmitterPlug):
                 self._routeMap[package.originId] = package.route
             #TODO send the package to all neighboring edges after adding this node id to route
         elif package.type == Package.PACKAGE_TYPE_PAYLOAD:
-            pass
+            pass#TODO
     
     def getAllConnections(self):
         return map(lambda nodeItem: nodeItem.connection, list(self._mobileNodeMap.values()) + list(self._edgeNodeMap.values()))

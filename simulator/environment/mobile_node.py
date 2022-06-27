@@ -13,6 +13,7 @@ from simulator.core.simulator import Simulator
 from simulator.core.task_queue import TaskQueue
 from simulator.core.task import Task
 from simulator.environment.task_node import TaskNode
+from simulator.processes.router_mobile import RouterMobile
 from simulator.task_multiplexing.selector import MultiplexerSelectorModel
 from simulator.task_multiplexing.transition import Transition
 from simulator.task_multiplexing.transition_recorder import TransitionRecorder
@@ -53,7 +54,7 @@ class TaskMultiplexerSelectorMobile(TaskMultiplexerSelector):
     def extractModel(self) -> MultiplexerSelectorModel:
         return self._innerSelector.extractModel()
             
-class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug, ParcelTransmitterPlug):
+class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug):
     def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int,
                  metteredPowerConsumtionPerTFlops: float = 0) -> None:
         self._plug = plug
@@ -65,7 +66,14 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
     
     def initializeConnection(self, simulator: Simulator):
         self._simulator = simulator
+
+        #router:
+        self._router = RouterMobile(simulator, self.id())
+        simulator.registerProcess(self._router)
+
         self._edgeConnection, duration = self._plug.updateMobileNodeConnection(self.id(), self.externalId())
+        self._router.updateConnection(edgeConnection)
+
         self._connectionProcess = Process()
         self._connectionProcess.wake = self.updateConnection
         simulator.registerProcess(self._connectionProcess)
@@ -201,12 +209,9 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
             self._simulator.registerEvent(Common.time(), self._transmitter.id())
         
     
-    #Task Transmitter
-    def fetchDestinationConnection(self, processId: int) -> Connection:
-        return self._edgeConnection
-    
-    def parcelTransmissionComplete(self, parcel: Parcel, processId: int) -> int:
-        pass #Nothing to do here, I can add a log if needed
+    #Router:
+    def receiveRoutedParcel(self, parcel: Parcel):
+        self._receiveParcel(parcel)
     
     #Node:
     def _receiveParcel(self, parcel: Parcel) -> bool:
