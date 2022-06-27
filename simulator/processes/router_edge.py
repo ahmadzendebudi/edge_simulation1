@@ -92,6 +92,13 @@ class RouterEdge(Process, ParcelTransmitterPlug):
             self._simulator.registerEvent(Common.time(), transmitter.id())
         pass
 
+    def _sendRoutedPackage(self, package: Parcel, nextHopId: int):
+        transmitter = self.getTransmitter(nextHopId)
+        if transmitter == None:
+            raise "next hop is not a connection"
+        transmitter.transmitQueue().put(package)
+        self._simulator.registerEvent(Common.time(), transmitter.id())
+
     def receivePackage(self, parcel: Parcel) -> int:
         if parcel.type != Common.PARCEL_TYPE_PACKAGE:
             raise "parcel is not a package"
@@ -102,7 +109,13 @@ class RouterEdge(Process, ParcelTransmitterPlug):
                 self._routeMap[package.originId] = package.route
             #TODO send the package to all neighboring edges after adding this node id to route
         elif package.type == Package.PACKAGE_TYPE_PAYLOAD:
-            pass#TODO
+            if package.destId == self._nodeId:
+                self._plug.receiveRoutedParcel(parcel)
+            elif len(package.route) > 0:
+                nextHopId = package.route.pop()
+                self._sendRoutedPackage(package, nextHopId)
+            else:
+                raise "package hops exhusted and we haven't reached destination node"
     
     def getAllConnections(self):
         return map(lambda nodeItem: nodeItem.connection, list(self._mobileNodeMap.values()) + list(self._edgeNodeMap.values()))

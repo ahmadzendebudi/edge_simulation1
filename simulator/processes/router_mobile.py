@@ -13,9 +13,10 @@ class RouterMobilePlug:
         pass
 
 class RouterMobile(Process, ParcelTransmitterPlug):
-    def __init__(self, simulator: Simulator, nodeId: int) -> None:
+    def __init__(self, simulator: Simulator, nodeId: int, plug: RouterMobilePlug) -> None:
         self._nodeId = nodeId
         self._simulator = simulator
+        self._plug = plug
         self._connection = None
         self._transmitter = None
 
@@ -47,7 +48,10 @@ class RouterMobile(Process, ParcelTransmitterPlug):
             #Discard, mobile nodes do not need to route packages
             pass
         elif package.type == Package.PACKAGE_TYPE_PAYLOAD:
+            if package.destId != self._nodeId:
+                raise "mobile node received a package not meant for it"
             parcel: Parcel = package.content
+            self._plug.receiveRoutedParcel(parcel)
 
 
     def getTransmitter(self):
