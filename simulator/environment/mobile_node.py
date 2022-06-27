@@ -181,7 +181,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
             raise ValueError("destination ids do not match, something most have gone wrong" +
                              "received dest id:" + str(destinationId) + ", mobile node dest id" +
                              str(self._edgeConnection.destNode()))
-        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id)
+        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id, self._edgeConnection.destNode())
         self._transmitter.transmitQueue().put(parcel)
         self._simulator.registerEvent(Common.time(), self._transmitter.id())
     
@@ -196,7 +196,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         if self._multiplexSelector.behaviour().trainLocal:
             self._multiplexSelector.addToBuffer(transition)
         elif self._multiplexSelector.behaviour().trainRemote:
-            parcel = Parcel(Common.PARCEL_TYPE_TRANSITION, sys.getsizeof(transition), transition, self._id)
+            parcel = Parcel(Common.PARCEL_TYPE_TRANSITION, sys.getsizeof(transition), transition, self._id, self._edgeConnection.destNode())
             self._transmitter.transmitQueue().put(parcel)
             self._simulator.registerEvent(Common.time(), self._transmitter.id())
         

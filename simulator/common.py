@@ -7,6 +7,7 @@ class Common:
     PARCEL_TYPE_NODE_STATE = "parcelTypeNodeState"
     PARCEL_TYPE_TRANSITION = "parcelTypeTransition"
     PARCEL_TYPE_ANN_PARAMS = "parcelTypeAnnParams"
+    PARCEL_TYPE_PACKAGE = "parcelTypePackage"
     
     @classmethod
     def time(cls) -> float:

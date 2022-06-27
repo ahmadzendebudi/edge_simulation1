@@ -45,6 +45,9 @@ class Simulator:
         process.setup(id)
         self._processMap[id] = process
         return id
+
+    def unregisterProcess(self, processId: int) -> Process:
+        return self._processMap.pop(processId)
     
     def registerNode(self, node: Node):
         id = Common.generateUniqueId()

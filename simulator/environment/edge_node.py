@@ -14,6 +14,7 @@ from simulator.core.simulator import Simulator
 from simulator.core.task import Task
 from simulator.environment.task_node import TaskNode
 from simulator.logger import Logger
+from simulator.processes.router_edge import RouterEdge, RouterEdgePlug
 from simulator.processes.task_generator import TaskGenerator
 from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug
 from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTransmitterPlug
@@ -26,10 +27,10 @@ class EdgeNodePlug:
         '''Should return (edgeConnections, mobileConnections, duration)
         
         duration: maximum time until this function is called again, a value
-        of "None" means the will not be another call to this function'''
+        of "None" means there will not be another call to this function'''
         pass
     
-class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
+class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
     def __init__(self, externalId: int, plug: EdgeNodePlug, flops: int, cores: int) -> None:
         self._plug = plug
         self._edgeStatesMap = {}
@@ -68,6 +69,10 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         
         self._taskIdToSenderIdMap = {}
         
+        #router:
+        self._router = RouterEdge(simulator, self.id(), self)
+        simulator.registerProcess(self._router)
+
         #transmitter processes:
         self._transmitterMap = {}
         self._transmitterIdToDestNodeIdMap = {}
@@ -110,24 +115,21 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         content = [self.id(), self.currentWorkload(), self._localQueue.qsize()]
         Logger.log("edge load: " + str(content), 2)
         size = Config.get("state_parcel_size_per_variable_in_bits") * len(content)
-        parcel = Parcel(Common.PARCEL_TYPE_NODE_STATE, size, content, self.id())
         for destId in self._nodeConnectionMap.keys():
-            transmitter = self._transmitterMap[destId]
-            transmitter.transmitQueue().put(parcel)
-            self._simulator.registerEvent(Common.time(), transmitter.id())
+            parcel = Parcel(Common.PARCEL_TYPE_NODE_STATE, size, content, self.id(), destId)
+            self._router.sendParcel(parcel)
         
         #Transmit mobile ANN parameters
         if self._mobileMultiplexSelector != None:
             model = self._mobileMultiplexSelector.extractModel()
-            parcel = Parcel(Common.PARCEL_TYPE_ANN_PARAMS, model.size, model, self.id())
             for connection in self._mobileConnections:
-                Logger.log("send model", 2)#TODO
-                transmitter = self._transmitterMap[connection.destNode()]
-                transmitter.transmitQueue().put(parcel)
-                self._simulator.registerEvent(Common.time(), transmitter.id())
+                parcel = Parcel(Common.PARCEL_TYPE_ANN_PARAMS, model.size, model, self.id(), connection.destNode())
+                self._router.sendParcel(parcel)
         
     def _receiveParcel(self, parcel: Parcel) -> bool:
-        if parcel.type == Common.PARCEL_TYPE_TASK:
+        if parcel.type == Common.PARCEL_TYPE_PACKAGE:
+            pass #TODO
+        elif parcel.type == Common.PARCEL_TYPE_TASK:
             task = parcel.content
             task.powerConsumed += parcel.powerConsumed
             self._multiplexQueue.put(task)
@@ -145,10 +147,8 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
             #forward transition if it was received by a mobile node
             if not any(map(lambda connection: connection.destNode() == parcel.senderNodeId, self._edgeConnections)):
                 for connection in self._edgeConnections:
-                    parcel = Parcel(Common.PARCEL_TYPE_TRANSITION, sys.getsizeof(transition), transition, self._id)
-                    transmitter = self._transmitterMap[connection.destNode()]
-                    transmitter.transmitQueue().put(parcel)
-                    self._simulator.registerEvent(Common.time(), transmitter.id())
+                    parcel = Parcel(Common.PARCEL_TYPE_TRANSITION, sys.getsizeof(transition), transition, self._id, connection.destNode())
+                    self._router.sendParcel(parcel)
         else:
             raise RuntimeError("Parcel type not supported for edge node")
     
@@ -171,7 +171,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
     def fetchState(self, task: Task, processId: int) -> Sequence[float]:
         self._updateDestEdge(task)
         edgeState = self._edgeStatesMap[self._destEdgeId]
-        transmitter = self._transmitterMap[self._destEdgeId]
+        transmitter = self._router.getTransmitter(self._destEdgeId)
         transmitQueue = transmitter.transmitQueue()
         return self._generateState(task, self._nodeConnectionMap[self._destEdgeId].datarate(),
                 self.currentWorkload(), self._localQueue.qsize(),
@@ -184,7 +184,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
         self._updateDestEdge(task)
         edgeState = self._edgeStatesMap[self._destEdgeId]
         taskWorkload = task.workload()
-        transmitter = self._transmitterMap[self._destEdgeId]
+        transmitter = self._router.getTransmitter(self._destEdgeId)
         transmitQueue = transmitter.transmitQueue()
         return self._generateState(task, self._nodeConnectionMap[self._destEdgeId].datarate(),
                 self.currentWorkload() + taskWorkload, self._localQueue.qsize() + 1,
@@ -234,14 +234,8 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
             self._simulator.registerEvent(Common.time(), taskRunner.id())
     
     def taskTransimission(self, task: Task, processId: int, destinationId: int) -> None:
-        transmitter = self._transmitterMap[self._destEdgeId]
-        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id)
-        transmitter.transmitQueue().put(parcel)
-        self._simulator.registerEvent(Common.time(), transmitter.id())
-        #approximating the work load in edge by adding the current task to the last state report of said edge:
-        #No longer needed as the transmitter metrics are included in state
-        #edgeState = self._edgeStatesMap[self._destEdgeId]
-        #self._edgeStatesMap[self._destEdgeId] = [edgeState[0] + task.workload(), edgeState[1] + 1]
+        parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id, self._destEdgeId)
+        self._router.sendParcel(parcel)
         
     
     #Task Runner
@@ -256,10 +250,8 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, ParcelTransmitterPlug):
             self._multiplexSelector.addToBuffer(transition)
         taskSenderNodeId = self._taskIdToSenderIdMap.pop(task.id())
         size = Config.get("task_result_parcel_size_in_bits")
-        parcel = Parcel(Common.PARCEL_TYPE_TASK_RESULT, size, task, self.id())
-        transmitter = self._transmitterMap[taskSenderNodeId]
-        transmitter.transmitQueue().put(parcel)
-        self._simulator.registerEvent(Common.time(), transmitter.id())
+        parcel = Parcel(Common.PARCEL_TYPE_TASK_RESULT, size, task, self.id(), taskSenderNodeId)
+        self._router.sendParcel(parcel)
     
     #Task transmission    
     def fetchDestinationConnection(self, processId: int) -> Connection:
