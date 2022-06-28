@@ -72,8 +72,6 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
 
         self._mobileMultiplexSelector = mobileMultiplexSelector
         
-        self._taskIdToSenderIdMap = {}
-        
         
         self._lastTransmitEmptyQueues = False
         '''indicates if the local and multiplex queues while sending the last states were empty'''
@@ -122,7 +120,6 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
             task.powerConsumed += parcel.powerConsumed
             self._multiplexQueue.put(task)
             self._simulator.registerEvent(Common.time(), self._taskMultiplexer.id())
-            self._taskIdToSenderIdMap[task.id()] = parcel.senderNodeId
         elif parcel.type == Common.PARCEL_TYPE_TASK_RESULT:
             task = parcel.content
             self._taskResultsArrival(task, True)
@@ -237,7 +234,8 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
             delay = Common.time() - task.arrivalTime()
             transition = self._transitionRecorder.completeTransition(task.id(), delay, task.powerConsumed)
             self._multiplexSelector.addToBuffer(transition)
-        taskSenderNodeId = self._taskIdToSenderIdMap.pop(task.id())#TODO:if edges can change connection, then I need to use node id instead of this map
+        taskSenderNodeId = task.route[len(task.route) - 1]
+        task.route = task.route[:len(task.route) - 1]
         size = Config.get("task_result_parcel_size_in_bits")
         parcel = Parcel(Common.PARCEL_TYPE_TASK_RESULT, size, task, self.id(), taskSenderNodeId)
         self._router.sendParcel(parcel)
@@ -245,8 +243,10 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
     #Router
     def isNodeOfInterest(self, nodeId) -> bool:
         for taskRunner in self._taskRunners:
-            if taskRunner.liveTask().nodeId()
-        raise "Not implemented"#TODO
+            liveTask = taskRunner.liveTask()
+            if liveTask != None and liveTask.route[len(liveTask.route) - 1] == nodeId:
+                return True
+        return any(map(lambda task:task.route[len(liveTask.route) - 1] == nodeId, self._localQueue.deque()))
 
     def receiveRoutedParcel(self, parcel: Parcel):
         self._receiveParcel(parcel)
