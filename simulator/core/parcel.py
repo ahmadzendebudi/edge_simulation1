@@ -1,3 +1,6 @@
+from typing import Tuple
+
+
 class Parcel:
     def __init__(self, type: int, size: int, content, senderNodeId: int, destNodeId: int) -> None:
         """possible types are defined in the common module"""

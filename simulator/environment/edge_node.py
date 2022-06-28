@@ -222,6 +222,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
             self._simulator.registerEvent(Common.time(), taskRunner.id())
     
     def taskTransimission(self, task: Task, processId: int, destinationId: int) -> None:
+        task.route = task.route + (self.id(),)
         parcel = Parcel(Common.PARCEL_TYPE_TASK, task.size(), task, self._id, self._destEdgeId)
         self._router.sendParcel(parcel)
         
@@ -236,13 +237,15 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
             delay = Common.time() - task.arrivalTime()
             transition = self._transitionRecorder.completeTransition(task.id(), delay, task.powerConsumed)
             self._multiplexSelector.addToBuffer(transition)
-        taskSenderNodeId = self._taskIdToSenderIdMap.pop(task.id())
+        taskSenderNodeId = self._taskIdToSenderIdMap.pop(task.id())#TODO:if edges can change connection, then I need to use node id instead of this map
         size = Config.get("task_result_parcel_size_in_bits")
         parcel = Parcel(Common.PARCEL_TYPE_TASK_RESULT, size, task, self.id(), taskSenderNodeId)
         self._router.sendParcel(parcel)
     
     #Router
     def isNodeOfInterest(self, nodeId) -> bool:
+        for taskRunner in self._taskRunners:
+            if taskRunner.liveTask().nodeId()
         raise "Not implemented"#TODO
 
     def receiveRoutedParcel(self, parcel: Parcel):

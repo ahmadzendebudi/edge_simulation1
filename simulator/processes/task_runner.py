@@ -55,10 +55,14 @@ class TaskRunner(Process):
             workload += self._flops * (self._liveTaskCompletionTime - Common.time())
         return workload
     
+    def liveTask(self):
+        return self._liveTask
+
     @classmethod
     def remainingWorkloadTaskQueue(cls, taskQueue: TaskQueue) -> int:
         workload = 0
         for task in taskQueue.deque():
             workload += task.workload()
         return workload
+
         

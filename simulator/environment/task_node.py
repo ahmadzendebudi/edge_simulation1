@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Callable
+from typing import Callable, List
 from simulator.core import Node
 from simulator.core import TaskQueue
 from simulator.core.simulator import Simulator
@@ -40,7 +40,7 @@ class TaskNode(Node, StateHandler, TaskRunnerPlug):
         self._simulator = simulator
         self._localQueue = TaskQueue()
         simulator.registerTaskQueue(self._localQueue)
-        self._taskRunners = []
+        self._taskRunners: List[TaskRunner] = []
         for _ in range(0, self._cores):
             taskRunner = TaskRunner(self, self._flops, self._metteredPowerConsumtionPerTFlops)
             simulator.registerProcess(taskRunner)

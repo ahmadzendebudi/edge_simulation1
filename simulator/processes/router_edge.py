@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Dict, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 from simulator.common import Common
 from simulator.config import Config
 from simulator.logger import Logger
@@ -36,7 +36,7 @@ class RouterEdge(Process, ParcelTransmitterPlug):
         self._edgeNodeMap: Dict[int, NodeItem] = {}
         self._transmitterIdToDestNodeIdMap: Dict[int, int] = {}
         self._routeBroadcast = []
-        self._waitingParcels = []
+        self._waitingParcels: List[Parcel] = []
 
     def updateConnections(self, mobileConnections: Sequence[Connection], edgeConnections: Sequence[Connection]):
         self._transmitterIdToDestNodeIdMap.clear()
@@ -85,12 +85,14 @@ class RouterEdge(Process, ParcelTransmitterPlug):
             
             self._transmitterIdToDestNodeIdMap[transmitter.id()] = connection.destNode()
         #we should examine the waiting parcels after all connections are updated
-        self._examineWaitingParcels()
+        self._resendWaitingParcels()
 
     def sendParcel(self, parcel: Parcel) -> Parcel:
         destId = parcel.destNodeId
         transmitter = self.getTransmitter(destId)
         if transmitter == None:
+            if parcel.type == Common.PARCEL_TYPE_PACKAGE:
+                Logger.log("!!WARNING!! A package is being repackaged, is it intentional?", 1)
             route = self._routeMap.get(parcel.destNodeId(), None)
             if route == None:
                 self._waitingParcels.append(parcel)
@@ -105,7 +107,6 @@ class RouterEdge(Process, ParcelTransmitterPlug):
         else:
             transmitter.transmitQueue().put(parcel)
             self._simulator.registerEvent(Common.time(), transmitter.id())
-        #TODO if this node is not a node of interest anymore and we have a route for it, delete the route
 
     def receivePackage(self, parcel: Parcel) -> int:
         if parcel.type != Common.PARCEL_TYPE_PACKAGE:
@@ -114,11 +115,11 @@ class RouterEdge(Process, ParcelTransmitterPlug):
         if package.type == Package.PACKAGE_TYPE_ROUTING:
             duplicatePackage = self._isDuplicateRouteBroadcast(package.originId, package.packageId)
             if not duplicatePackage:
-                if self._plug.isNodeOfInterest(package.originId): #TODO also chack if we have queued packages for this node
+                if self._plug.isNodeOfInterest(package.originId) or self._hasWaitingParcel(package.originId):
                     if len(package.route) < 2:
                         raise "route length is smaller than 2, route is impossible"
                     self._routeMap[package.originId] = package.route
-                    self._examineWaitingParcels()
+                    self._resendWaitingParcels()
                 forwardPackage = PackageTools.appendRoute(package, self._nodeId)
                 for connection in self.getEdgeConnections():
                     if connection.destNode() != parcel.senderNodeId:
@@ -176,8 +177,14 @@ class RouterEdge(Process, ParcelTransmitterPlug):
             self._routeBroadcast.append((originId, packageId, Common.time()))
         return duplicateRoutBroadcast
 
-    def _examineWaitingParcels(self):
-        pass#TODO
+    def _resendWaitingParcels(self):
+        oldWaitingParcels = tuple(self._waitingParcels)
+        self._waitingParcels.clear()
+        for parcel in oldWaitingParcels:
+            self.sendParcel(parcel)
+
+    def _hasWaitingParcel(self, destId: int) -> bool:
+        return any(map(lambda parcel: parcel.destNodeId == destId, self._waitingParcels))
 
     def fetchDestinationConnection(self, processId: int) -> Connection:
         return self.getConnectionByTransmitterId(processId)

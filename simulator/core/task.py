@@ -7,6 +7,8 @@ class Task:
         self._hopLimit = hopLimit
         self._log = []
         
+        self.route = (nodeId,)
+        
         self.completionTime = None
         self.powerConsumed = 0.0
     
