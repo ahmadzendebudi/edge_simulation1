@@ -13,7 +13,7 @@ from simulator.core.simulator import Simulator
 from simulator.core.task_queue import TaskQueue
 from simulator.core.task import Task
 from simulator.environment.task_node import TaskNode
-from simulator.processes.router_mobile import RouterMobile
+from simulator.processes.router_mobile import RouterMobile, RouterMobilePlug
 from simulator.task_multiplexing.selector import MultiplexerSelectorModel
 from simulator.task_multiplexing.transition import Transition
 from simulator.task_multiplexing.transition_recorder import TransitionRecorder
@@ -54,7 +54,7 @@ class TaskMultiplexerSelectorMobile(TaskMultiplexerSelector):
     def extractModel(self) -> MultiplexerSelectorModel:
         return self._innerSelector.extractModel()
             
-class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug):
+class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplexerPlug, RouterMobilePlug):
     def __init__(self, externalId: int, plug: MobileNodePlug, flops: int, cores: int,
                  metteredPowerConsumtionPerTFlops: float = 0) -> None:
         self._plug = plug
@@ -65,7 +65,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         self._simulator = simulator
 
         #router:
-        self._router = RouterMobile(simulator, self.id())
+        self._router = RouterMobile(simulator, self.id(), self)
         simulator.registerProcess(self._router)
 
         edgeConnection, duration = self._plug.updateMobileNodeConnection(self.id(), self.externalId())
@@ -228,5 +228,6 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
             self._multiplexSelector.setModel(model)
         else:
             raise ValueError("Parcel type: " + str(parcel.type) + " not supported by mobile node")
+    
     
     
