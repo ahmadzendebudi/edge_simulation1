@@ -48,6 +48,7 @@ class RouterEdge(Process, ParcelTransmitterPlug):
             transmitter = self._mobileNodeMap[nodeId].transmitter
             self._waitingParcels += transmitter.allParcels()
             self._simulator.unregisterProcess(transmitter.id())
+            self._simulator.unregisterParcelQueue(transmitter._queue.id())
             del self._mobileNodeMap[nodeId]
 
         for connection in mobileConnections:

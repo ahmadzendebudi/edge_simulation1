@@ -28,7 +28,9 @@ class Simulator:
         while eventHeap.size() > 0:
             time, processId = eventHeap.nextEvent()
             Common.setTime(time)
-            self.getProcess(processId).wake()
+            eventProcess = self.getProcess(processId)
+            if eventProcess != None:
+                eventProcess.wake()
             
     
     def setup(self, env: Environment):
@@ -68,11 +70,14 @@ class Simulator:
         self._parcelQueueMap[id] = parcelQueue
         return id
     
+    def unregisterParcelQueue(self, id: int) -> ParcelQueue:
+        return self._parcelQueueMap.pop(id)
+    
     def unregisterTask(self, taskId: int) -> Task:
         return self._taskMap.pop(taskId)
     
     def getProcess(self, id: int) -> Process:
-        return self._processMap[id]
+        return self._processMap.get(id, None)
     
     def getTaskQueue(self, id: int) -> TaskQueue:
         return self._taskQueueMap[id]
