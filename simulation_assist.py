@@ -17,6 +17,7 @@ from simulator.task_multiplexing import TaskMultiplexerSelectorRandom
 from simulator.task_multiplexing import TaskMultiplexerSelectorRemote
 from simulator.task_multiplexing import TaskMultiplexerSelectorGreedy
 from simulator import Common
+from simulator.world_builds.box_worldv2 import BoxWorldv2
 
 class SimulationAssist:
     @classmethod
@@ -84,7 +85,7 @@ class SimulationAssist:
         TaskGenerator.retrieveList()
 
 
-        world = BoxWorld()
+        world = BoxWorldv2()
         edgeNodes, mobileNodes = world.build()
         edgeReward, mobileReward = world.defaultRewards()
 

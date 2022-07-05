@@ -58,6 +58,9 @@
 
     "#boxworld": "box world values",
     "boxworld_mobile_nodes": 50,
+    "boxworld_edge_nodes": 4,
+    "boxworld_width": 100,
+    "boxworld_height": 100,
 
     "#selectors": "greedy, dql, local, remote, random",
     "mobile_selector": "dql",

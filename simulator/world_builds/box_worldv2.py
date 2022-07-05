@@ -1,0 +1,189 @@
+
+from typing import Callable, Sequence, Tuple
+import numpy as np
+from simulator.config import Config
+from simulator.core.connection import Connection
+from simulator.core.task import Task
+from simulator.environment.edge_node import EdgeNode, EdgeNodePlug
+from simulator.environment.mobile_node import MobileNode, MobileNodePlug
+from simulator.task_multiplexing.transition import Transition
+
+class Device:
+    def __init__(self, id, node, location) -> None:
+        self.id = id
+        self.node = node
+        self.location = location
+
+class MobileDevice(Device):
+    def __init__(self, id, node, location) -> None:
+        super().__init__(id, node, location)
+
+class EdgeDevice(Device):
+    def __init__(self, id, node, location) -> None:
+        super().__init__(id, node, location)
+
+class BoxWorldv2(EdgeNodePlug, MobileNodePlug):
+    delay_coefficient = Config.get("delay_coefficient")
+    power_coefficient = Config.get("power_coefficient")
+    
+    def build(self) -> Tuple[Sequence[EdgeNode], Sequence[MobileNode]]:
+        self._loadConfig()
+        edgeNodesLocation = [[25, 25], [75, 25], [75, 75], [25, 75]]
+        mobileNodesLocation = []
+        mobileCount = Config.get("boxworld_mobile_nodes")
+        for _ in range(mobileCount):
+            mobileNodesLocation.append(np.random.randint(1, 100, 2).tolist())
+        
+        self._edgeDevices = {}
+        self._mobileDevices = {}
+        
+        id = 0
+        for location in edgeNodesLocation:
+            id += 1
+            flops = self._edge_cpu_core_tflops * (10 ** 12)
+            cores = self._edge_cpu_cores
+            device = EdgeDevice(id, EdgeNode(id, self, flops, cores), location)
+            self._edgeDevices[id] = device
+        
+        mobileWattsPerTFlops=Config.get("mobile_watts_per_tflop")
+        for location in mobileNodesLocation:
+            id += 1
+            flops = self._mobile_cpu_core_tflops * (10 ** 12)
+            cores = self._mobile_cpu_cores
+            mobileNode = MobileNode(id, self, flops, cores,
+                                        metteredPowerConsumtionPerTFlops=mobileWattsPerTFlops)
+            device = MobileDevice(id, mobileNode, location)
+            self._mobileDevices[id] = device
+        
+        self.setupConnections()
+        
+        return ([device["node"] for device in self._edgeDevices.values()],
+                [device["node"] for device in self._mobileDevices.values()])
+    
+    def defaultRewards(self):
+        edgeRewardFunction: Callable[[Transition], float] = lambda transition: - BoxWorldv2.delay_coefficient * transition.delay
+        mobileRewardFunction: Callable[[Transition], float] = (lambda transition: - BoxWorldv2.delay_coefficient * transition.delay
+                                                         - BoxWorldv2.power_coefficient * transition.powerConsumed)
+        return (edgeRewardFunction, mobileRewardFunction)
+        
+    def _loadConfig(self):
+        self._mobile_transmit_power_watts = Config.get("mobile_transmit_power_watts")
+        self._edge_transmit_power_watts = Config.get("edge_transmit_power_watts")
+        self._mobile_gain_dBi = Config.get("mobile_gain_dBi")
+        self._edge_gain_dBi = Config.get("edge_gain_dBi")
+        self._channel_frequency_GHz = Config.get("channel_frequency_GHz")
+        self._channel_bandwidth_MHz = Config.get("channel_bandwidth_MHz")
+        self._gaussain_noise_dBm = Config.get("gaussain_noise_dBm")
+        self._gaussain_noise_sd_dBm = Config.get("gaussain_noise_sd_dBm")
+        self._task_size_kBit = Config.get("task_size_kBit")
+        self._task_size_sd_kBit = Config.get("task_size_sd_kBit")
+        self._task_size_min_kBit = Config.get("task_size_min_kBit")
+        self._task_kflops_per_bit = Config.get("task_kflops_per_bit")
+        self._task_kflops_per_bit_sd = Config.get("task_kflops_per_bit_sd")
+        self._task_kflops_per_bit_min = Config.get("task_kflops_per_bit_min")
+        self._mobile_cpu_core_tflops = Config.get("mobile_cpu_core_tflops")
+        self._mobile_cpu_cores = Config.get("mobile_cpu_cores")
+        self._edge_cpu_core_tflops = Config.get("edge_cpu_core_tflops")
+        self._edge_cpu_cores = Config.get("edge_cpu_cores")
+    
+    def setupConnections(self):
+        #mobile devices choose the closest edge to them
+        #TODO if mobile devices move, the closest device should not only be closer to the current connection,
+        #but also, the difference in distance should be higher than a number
+        for mobileDevice in self._mobileDevices.values():
+            closestEdge = None
+            for edgeDevice in self._edgeDevices.values():
+                if closestEdge == None:
+                    closestEdge = edgeDevice
+                elif (self.distance(mobileDevice["location"], closestEdge["location"]) > 
+                      self.distance(mobileDevice["location"], edgeDevice["location"])):
+                    closestEdge = edgeDevice
+            if closestEdge != None:
+                mobileDevice["connectionEdgeId"] = closestEdge["id"]
+        
+        
+        #edge devices connect to mobile devices which are connected to them
+        for edgeDevice in self._edgeDevices.values():
+            edgeDevice["connectionsMobileId"] = []
+            for mobileDevice in self._mobileDevices.values():
+                if mobileDevice["connectionEdgeId"] == edgeDevice["id"]:
+                    edgeDevice["connectionsMobileId"].append(mobileDevice["id"])
+                    
+        #edge devices connect to edge devices which are closer than a number
+        for edgeDevice in self._edgeDevices.values():
+            edgeDevice["connectionsEdgeId"] = []
+            for otherDevice in self._edgeDevices.values():
+                if (otherDevice["id"] != edgeDevice["id"] and 
+                    self.distance(edgeDevice["location"], otherDevice["location"]) < 80):
+                    edgeDevice["connectionsEdgeId"].append(otherDevice["id"])
+                    
+            
+    def updateEdgeNodeConnections(self, nodeId: int, nodeExternalId: int) -> Tuple[Sequence[Connection], Sequence[Connection], int]:
+        edgeConnections = []
+        mobileConnections = []
+        
+        senderEdgeDevice = self._edgeDevices[nodeExternalId]
+        for edgeDeviceId in senderEdgeDevice["connectionsEdgeId"]:
+            receiverEdgeDevice = self._edgeDevices[edgeDeviceId]
+            receiverEdgeNodeId = receiverEdgeDevice["node"].id()
+            datarate = self._sampleEdgeToEdgeDataRate(senderEdgeDevice, receiverEdgeDevice, 4)#TODO modulation should be set properly
+            edgeConnections.append(Connection(nodeId, receiverEdgeNodeId, datarate))
+        
+        powerConsumption = Config.get("mobile_transmit_power_watts")
+        for mobileDeviceId in senderEdgeDevice["connectionsMobileId"]:
+            receiverMobileDevice = self._mobileDevices[mobileDeviceId]
+            receiverMobileNodeId = receiverMobileDevice["node"].id()
+            datarate = self._sampleEdgeToMobileDataRate(senderEdgeDevice, receiverMobileDevice, 100)#TODO modulation should be set properly
+            mobileConnections.append(Connection(nodeId, receiverMobileNodeId, datarate, powerConsumption))
+            
+        return (edgeConnections, mobileConnections, None)
+        
+        
+    def updateMobileNodeConnection(self, nodeId: int, nodeExternalId: int) -> Tuple[Connection, int]:
+        mobileDevice = self._mobileDevices[nodeExternalId]
+        edgeDeviceId = mobileDevice["connectionEdgeId"]
+        edgeDevice = self._edgeDevices[edgeDeviceId]
+        datarate = self._sampleMobileToEdgeDataRate(mobileDevice, edgeDevice, 100)#TODO modulation should be set properly
+        powerConsumption = Config.get("mobile_transmit_power_watts")
+        return (Connection(nodeId, edgeDevice["node"].id(), datarate, powerConsumption), None)
+    
+    def _sampleEdgeToEdgeDataRate(self, transmtterDevice, receiverDevice, modulationChannels) -> int: #TODO modulation should also be taken into account 
+        return self._sampleDeviceToDeviceDataRate(transmtterDevice, self._edge_gain_dBi, self._edge_transmit_power_watts,
+                                             receiverDevice, self._edge_gain_dBi,
+                                             self._channel_frequency_GHz, self._channel_bandwidth_MHz, modulationChannels)
+    
+    def _sampleMobileToEdgeDataRate(self, mobileDevice, edgeDevice, modulationChannels) -> int: #TODO modulation should also be taken into account 
+        return self._sampleDeviceToDeviceDataRate(mobileDevice, self._mobile_gain_dBi, self._mobile_transmit_power_watts,
+                                             edgeDevice, self._edge_gain_dBi,
+                                             self._channel_frequency_GHz, self._channel_bandwidth_MHz, modulationChannels)
+    
+    def _sampleEdgeToMobileDataRate(self, edgeDevice, mobileDevice, modulationChannels) -> int: #TODO modulation should also be taken into account 
+        return self._sampleDeviceToDeviceDataRate(edgeDevice, self._edge_gain_dBi, self._edge_transmit_power_watts,
+                                             mobileDevice, self._mobile_gain_dBi,
+                                             self._channel_frequency_GHz, self._channel_bandwidth_MHz, modulationChannels)
+        
+    def _sampleDeviceToDeviceDataRate(self, transmitterDevice, transmitGain_dBi, transmitPower,
+                                      receiverDevice, receiveGain_dBi,
+                                      channelFrequency_GHz, channelBandwidth_MHz, modulationChannels):
+        transmitGain = 10 ** (transmitGain_dBi / 10)
+        receiveGain = 10 ** (receiveGain_dBi / 10)
+        channelFrequency = channelFrequency_GHz * 10 ** 9
+        channelBandwidth = channelBandwidth_MHz * 10 ** 6
+        
+        #299792458 is the speed of light
+        wavelength = 299792458/channelFrequency
+        distance = self.distance(transmitterDevice["location"], receiverDevice["location"])
+        
+        receivePower = transmitPower * transmitGain * receiveGain * (wavelength / (4 * np.pi * distance)) ** 2
+        
+        receiveNoisePower = 10 ** (self._gaussain_noise_dBm / 10)
+        
+        datarate = channelBandwidth * np.log2(1 + receivePower / receiveNoisePower)
+        datarate = int(datarate / modulationChannels)
+        return datarate  
+    
+    def distance(self, location1: Sequence[int], location2: Sequence[int]) -> float:
+        return np.sqrt(np.power(location1[0] - location2[0], 2) + np.power(location1[1] - location2[1], 2))
+        
+        
+        
