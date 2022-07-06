@@ -51,8 +51,7 @@ class RouterMobile(Process, ParcelTransmitterPlug):
         elif package.type == Package.PACKAGE_TYPE_PAYLOAD:
             if package.destId != self._nodeId:
                 raise "mobile node received a package not meant for it"
-            parcel: Parcel = package.content
-            self._plug.receiveRoutedParcel(parcel)
+            self._plug.receiveRoutedParcel(package.content)
 
 
     def getTransmitter(self):

@@ -94,12 +94,6 @@ class RouterEdge(Process, ParcelTransmitterPlug):
         transmitter = self.getTransmitter(destId)
         if transmitter is None and parcel.hops > 1:
             if parcel.type == Common.PARCEL_TYPE_PACKAGE:
-                #Logger.log("Parcel content:" + str(parcel), 0)
-                #Logger.log("--------------------------", 0)
-                #Logger.log("Package content:" + str(parcel.content), 0)
-                #Logger.log("--------------------------", 0)
-                #Logger.log("connected edge: " + str(self._simulator.getNode(parcel.content.destId)._router._connection), 0)
-                #Logger.log("--------------------------", 0)
                 raise RuntimeError("!!WARNING!! A package is being repackaged, is it intentional?")
             route = self._routeMap.get(parcel.destNodeId, None)
             if route is None:
@@ -139,7 +133,7 @@ class RouterEdge(Process, ParcelTransmitterPlug):
                         self.sendParcel(forwardParcel)
         elif package.type == Package.PACKAGE_TYPE_PAYLOAD:
             if package.destId == self._nodeId:
-                self._plug.receiveRoutedParcel(parcel)
+                self._plug.receiveRoutedParcel(package.content)
             elif len(package.route) > 0:
                 #print("package route before forwarding:" + str(package.route))#TODO remove
                 newPackage, nextHopId = PackageTools.popRoute(package)
@@ -183,7 +177,7 @@ class RouterEdge(Process, ParcelTransmitterPlug):
 
     def _isDuplicateRouteBroadcast(self, originId: int, packageId: int) -> bool:
         lifespan = Config.get("router_route_broadcast_record_lifespan")
-        self._routeBroadcast = [x for x in self._routeBroadcast if x[2] < lifespan]
+        self._routeBroadcast = [x for x in self._routeBroadcast if x[2] > Common.time() - lifespan]
         duplicateRoutBroadcast = any(map(lambda item: item[0] == originId and item[1] == packageId, self._routeBroadcast))
         if not duplicateRoutBroadcast:
             self._routeBroadcast.append((originId, packageId, Common.time()))
