@@ -44,7 +44,7 @@ class ParcelTransmitter(Process):
             self._liveParcelCompletionTime = None
             self._liveParcelTransmitDuration = None
         
-        if (self._liveParcel == None):
+        if (self._liveParcel is None):
             if self._queue.qsize() > 0:
                 self._transmitParcel(self._queue.get())
         return super().wake()

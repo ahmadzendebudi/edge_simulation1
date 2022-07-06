@@ -22,8 +22,12 @@ class TaskEnvironment(Environment):
         self._edgeSelectorGenerator = edgeSelectorGenerator
     
     def initialize(self, simulator: Simulator, 
-                   mobileTransitionWatchers: Collection[Callable[[Transition], Any]] = [],
-                   edgeTransitionWatchers: Collection[Callable[[Transition], Any]] = []) -> None:
+                   mobileTransitionWatchers: Collection[Callable[[Transition], Any]] = None,
+                   edgeTransitionWatchers: Collection[Callable[[Transition], Any]] = None) -> None:
+        if mobileTransitionWatchers == None:
+            mobileTransitionWatchers = []
+        if edgeTransitionWatchers == None:
+            edgeTransitionWatchers = []
         self._simulator = simulator
         for node in self._edgeNodes + self._mobileNodes:
             simulator.registerNode(node)

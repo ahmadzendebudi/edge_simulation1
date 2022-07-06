@@ -146,7 +146,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
         if not Config.get("mode_workload_provided"):
             index = 1
         for id, value in self._edgeStatesMap.items():
-                if minValue == None or minValue > value[index]:
+                if minValue is None or minValue > value[index]:
                     minValue = value[index]
                     destId = id 
         self._destEdgeId = destId

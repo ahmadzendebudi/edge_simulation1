@@ -91,11 +91,11 @@ class RouterEdge(Process, ParcelTransmitterPlug):
     def sendParcel(self, parcel: Parcel) -> Parcel:
         destId = parcel.destNodeId
         transmitter = self.getTransmitter(destId)
-        if transmitter == None:
+        if transmitter is None:
             if parcel.type == Common.PARCEL_TYPE_PACKAGE:
                 Logger.log("!!WARNING!! A package is being repackaged, is it intentional?", 1)
             route = self._routeMap.get(parcel.destNodeId(), None)
-            if route == None:
+            if route is None:
                 self._waitingParcels.append(parcel)
             else:
                 package = Package(Package.PACKAGE_TYPE_PAYLOAD, parcel.senderNodeId, parcel.destNodeId, 
@@ -148,7 +148,7 @@ class RouterEdge(Process, ParcelTransmitterPlug):
 
     def getConnection(self, destId: int) -> Connection:
         nodeItem = self._getNodeItem(destId)
-        if nodeItem == None:
+        if nodeItem is None:
             return None
         else:
             return nodeItem.connection
@@ -159,14 +159,14 @@ class RouterEdge(Process, ParcelTransmitterPlug):
 
     def getTransmitter(self, destId: int) -> ParcelTransmitter:
         nodeItem = self._getNodeItem(destId)
-        if nodeItem == None:
+        if nodeItem is None:
             return None
         else:
             return nodeItem.transmitter
 
     def _getNodeItem(self, destId: int) -> NodeItem:
         nodeItem = self._mobileNodeMap.get(destId, None)
-        if nodeItem == None:
+        if nodeItem is None:
             nodeItem = self._edgeNodeMap.get(destId, None)
         return nodeItem
 

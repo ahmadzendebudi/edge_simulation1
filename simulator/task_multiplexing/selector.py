@@ -21,7 +21,7 @@ class TaskMultiplexerSelector:
     def __init__(self, rewardFunction: Callable[['Transition'], float],
                  behaviour: MultiplexerSelectorBehaviour = None) -> None:
         self._rewardFunction = rewardFunction
-        if behaviour == None:
+        if behaviour is None:
             self._behaviour = MultiplexerSelectorBehaviour()
         else:
             self._behaviour = behaviour

@@ -37,7 +37,7 @@ class TaskRunner(Process):
             self._liveTaskCompletionTime = None
             self._liveTaskPowerConsumption = None
         
-        if (self._liveTask == None):
+        if (self._liveTask is None):
             queue = self._plug.fetchTaskRunnerQueue(self._id)
             if queue.qsize() != 0:
                 self._runTask(queue.get())

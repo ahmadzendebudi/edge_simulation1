@@ -16,7 +16,7 @@ class Device:
     def __init__(self, id, node, location=None) -> None:
         self.id = id
         self.node = node
-        if location == None:
+        if location is None:
             self.location = self.getRandomLocation()
         else:
             self.location = location
@@ -31,11 +31,11 @@ class MobileDevice(Device):
         self.destLocation = destLocation
         self.time = time
         self.edgeId = edgeId
-        if velocity == None:
+        if velocity is None:
             self.setRandomVelocity()
         else:
             self.velocity = velocity
-        if destLocation == None:
+        if destLocation is None:
             self.setRandomDestLocation()
         else:
             self.destLocation = destLocation
@@ -50,10 +50,17 @@ class MobileDevice(Device):
 
 
 class EdgeDevice(Device):
-    def __init__(self, id, node, location, edgeIds: Set[int] = set(), mobileIds: Set[int] = set()) -> None:
+    def __init__(self, id, node, location, edgeIds: Set[int] = None, mobileIds: Set[int] = None) -> None:
         super().__init__(id, node, location)
-        self.edgeIds = edgeIds
-        self.mobileIds = mobileIds
+        if edgeIds == None:
+            self.edgeIds = set()
+        else:
+            self.edgeIds = edgeIds
+
+        if mobileIds == None:
+            self.mobileIds = set()
+        else:
+            self.mobileIds = mobileIds
 
 
 class BoxWorldv2(EdgeNodePlug, MobileNodePlug):
@@ -132,8 +139,7 @@ class BoxWorldv2(EdgeNodePlug, MobileNodePlug):
                         mobileDevice.location, mobileDevice.destLocation)
                     arrivalTime = distanceToDestination / mobileDevice.velocity + mobileDevice.time
                     if arrivalTime > current_time:
-                        alpha = (current_time - mobileDevice.time) / \
-                            (arrivalTime - mobileDevice.time)
+                        alpha = (current_time - mobileDevice.time) / (arrivalTime - mobileDevice.time)
                         mobileDevice.location = (
                             1 - alpha) * mobileDevice.location + alpha * mobileDevice.destLocation
                         mobileDevice.time = current_time
@@ -150,19 +156,19 @@ class BoxWorldv2(EdgeNodePlug, MobileNodePlug):
             if self.distance(edge1.location, edge2.location) < 80:
                 edge1.edgeIds.add(edge2.id)
                 edge2.edgeIds.add(edge1.id)
-
+                
         # updating edge-mobile connections:
         for mobile in self._mobileDevices.values():
             closestEdge = None
             for edge in self._edgeDevices.values():
-                if closestEdge == None or (self.distance(mobile.location, closestEdge.location) >
+                if closestEdge is None or (self.distance(mobile.location, closestEdge.location) >
                                            self.distance(mobile.location, edge.location)):
                     closestEdge = edge
-            if closestEdge == None:
+            if closestEdge is None:
                 raise "no edge found for the mobile device to connect to"
 
-            currentEdge = None if mobile.edgeId == None else self._edgeDevices[mobile.edgeId]
-            if currentEdge == None or (self.distance(mobile.location, currentEdge.location) >
+            currentEdge = None if mobile.edgeId is None else self._edgeDevices[mobile.edgeId]
+            if currentEdge is None or (self.distance(mobile.location, currentEdge.location) >
                                        self.distance(mobile.location, closestEdge.location) + 10):
                 if currentEdge != None:
                     currentEdge.mobileIds.remove(mobile.id)
@@ -202,7 +208,7 @@ class BoxWorldv2(EdgeNodePlug, MobileNodePlug):
         datarate = self._sampleMobileToEdgeDataRate(
             mobileDevice, edgeDevice, 100)  # TODO modulation should be set properly
         powerConsumption = Config.get("mobile_transmit_power_watts")
-        return (Connection(nodeId, edgeDevice["node"].id(), datarate, powerConsumption), Common.time() + self._update_interval)
+        return (Connection(nodeId, edgeDevice.node.id(), datarate, powerConsumption), Common.time() + self._update_interval)
 
     # TODO modulation should also be taken into account
     def _sampleEdgeToEdgeDataRate(self, transmtterDevice, receiverDevice, modulationChannels) -> int:
@@ -222,8 +228,8 @@ class BoxWorldv2(EdgeNodePlug, MobileNodePlug):
                                                   mobileDevice, self._mobile_gain_dBi,
                                                   self._channel_frequency_GHz, self._channel_bandwidth_MHz, modulationChannels)
 
-    def _sampleDeviceToDeviceDataRate(self, transmitterDevice, transmitGain_dBi, transmitPower,
-                                      receiverDevice, receiveGain_dBi,
+    def _sampleDeviceToDeviceDataRate(self, transmitterDevice: Device, transmitGain_dBi, transmitPower,
+                                      receiverDevice: Device, receiveGain_dBi,
                                       channelFrequency_GHz, channelBandwidth_MHz, modulationChannels):
         transmitGain = 10 ** (transmitGain_dBi / 10)
         receiveGain = 10 ** (receiveGain_dBi / 10)
@@ -233,15 +239,11 @@ class BoxWorldv2(EdgeNodePlug, MobileNodePlug):
         # 299792458 is the speed of light
         wavelength = 299792458/channelFrequency
         distance = self.distance(
-            transmitterDevice["location"], receiverDevice["location"])
-
-        receivePower = transmitPower * transmitGain * \
-            receiveGain * (wavelength / (4 * np.pi * distance)) ** 2
+            transmitterDevice.location, receiverDevice.location)
+        receivePower = transmitPower * transmitGain * receiveGain * (wavelength / (4 * np.pi * distance)) ** 2
 
         receiveNoisePower = 10 ** (self._gaussain_noise_dBm / 10)
-
-        datarate = channelBandwidth * \
-            np.log2(1 + receivePower / receiveNoisePower)
+        datarate = channelBandwidth * np.log2(1 + receivePower / receiveNoisePower)
         datarate = int(datarate / modulationChannels)
         return datarate
 

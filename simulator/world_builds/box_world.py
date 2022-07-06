@@ -87,7 +87,7 @@ class BoxWorld(EdgeNodePlug, MobileNodePlug):
         for mobileDevice in self._mobileDevices.values():
             closestEdge = None
             for edgeDevice in self._edgeDevices.values():
-                if closestEdge == None:
+                if closestEdge is None:
                     closestEdge = edgeDevice
                 elif (self.distance(mobileDevice["location"], closestEdge["location"]) > 
                       self.distance(mobileDevice["location"], edgeDevice["location"])):

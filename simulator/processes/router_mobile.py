@@ -26,14 +26,14 @@ class RouterMobile(Process, ParcelTransmitterPlug):
             self.sendParcel(parcel)
             #TODO current transmission can either continue or cancel and restart with this new edge
         self._connection = mobileConnection
-        if self._transmitter == None:
+        if self._transmitter is None:
             transmitQueue = ParcelQueue()
             self._simulator.registerParcelQueue(transmitQueue)
             self._transmitter = ParcelTransmitter(self._simulator, transmitQueue, self)
             self._simulator.registerProcess(self._transmitter)
     
     def sendParcel(self, parcel: Parcel) -> Parcel:
-        if self._transmitter == None:
+        if self._transmitter is None:
             raise "mobile node not connected to an edge device"
         elif self._connection.destNode() != parcel.destNodeId:
             raise "parcel has a different destNodeId than the mobile node edge connection"

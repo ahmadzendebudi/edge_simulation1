@@ -40,7 +40,7 @@ class TaskMultiplexerSelectorMobile(TaskMultiplexerSelector):
         action, selection = self._innerSelector.action(task, state)
         if selection == 1:
             return action, self._destId
-        elif selection == None or selection == 0:
+        elif selection is None or selection == 0:
             return action, None
         else:
             raise ValueError("output selection: " + str(selection) + " is not supported by this selector")
