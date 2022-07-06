@@ -245,11 +245,9 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
     def isNodeOfInterest(self, nodeId) -> bool:
         for taskRunner in self._taskRunners:
             liveTask = taskRunner.liveTask()
-            if liveTask != None:#TODO remove
-                print(len(liveTask.route) - 1)#TODO remove
             if liveTask != None and liveTask.route[len(liveTask.route) - 1] == nodeId:
                 return True
-        return any(map(lambda task:task.route[len(liveTask.route) - 1] == nodeId, self._localQueue.deque()))
+        return any(map(lambda task:task.route[len(task.route) - 1] == nodeId, self._localQueue.deque()))
 
     def receiveRoutedParcel(self, parcel: Parcel):
         self._receiveParcel(parcel)

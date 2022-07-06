@@ -32,10 +32,11 @@ class TaskRunner(Process):
     def wake(self) -> None:
         if (self._liveTask != None and self._liveTaskCompletionTime <= Common.time()):
             self._liveTask.powerConsumed += self._liveTaskPowerConsumption
-            self._plug.taskRunComplete(self._liveTask, self._id)
+            completed_task = self._liveTask
             self._liveTask = None
             self._liveTaskCompletionTime = None
             self._liveTaskPowerConsumption = None
+            self._plug.taskRunComplete(completed_task, self._id)
         
         if (self._liveTask is None):
             queue = self._plug.fetchTaskRunnerQueue(self._id)
