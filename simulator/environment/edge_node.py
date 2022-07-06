@@ -102,17 +102,18 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
         Logger.log("edge load: " + str(content), 2)
         size = Config.get("state_parcel_size_per_variable_in_bits") * len(content)
         for connection in self._router.getAllConnections():
-            parcel = Parcel(Common.PARCEL_TYPE_NODE_STATE, size, content, self.id(), connection.destNode())
+            parcel = Parcel(Common.PARCEL_TYPE_NODE_STATE, size, content, self.id(), connection.destNode(), 1)
             self._router.sendParcel(parcel)
         
         #Transmit mobile ANN parameters
         if self._mobileMultiplexSelector != None:
             model = self._mobileMultiplexSelector.extractModel()
             for connection in self._router.getMobileConnections():
-                parcel = Parcel(Common.PARCEL_TYPE_ANN_PARAMS, model.size, model, self.id(), connection.destNode())
+                parcel = Parcel(Common.PARCEL_TYPE_ANN_PARAMS, model.size, model, self.id(), connection.destNode(), 1)
                 self._router.sendParcel(parcel)
         
     def _receiveParcel(self, parcel: Parcel) -> bool:
+        parcel.hops -= 1
         if parcel.type == Common.PARCEL_TYPE_PACKAGE:
             self._router.receivePackage(parcel)
         elif parcel.type == Common.PARCEL_TYPE_TASK:
@@ -244,6 +245,8 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
     def isNodeOfInterest(self, nodeId) -> bool:
         for taskRunner in self._taskRunners:
             liveTask = taskRunner.liveTask()
+            if liveTask != None:#TODO remove
+                print(len(liveTask.route) - 1)#TODO remove
             if liveTask != None and liveTask.route[len(liveTask.route) - 1] == nodeId:
                 return True
         return any(map(lambda task:task.route[len(liveTask.route) - 1] == nodeId, self._localQueue.deque()))

@@ -17,6 +17,11 @@ class Connection:
     def metteredPowerConsumtion(self) -> float:
         return self._metteredPowerConsumtion
     
+    def __str__(self) -> str:
+        return ("Connection({" + "_sourceNode:" + str(self._sourceNode) + " _destNode:" + str(self._destNode) +
+                " _datarate:" + str(self._datarate) + " _metteredPowerConsumtion:" + str(self._metteredPowerConsumtion) + "})")
+
     @classmethod
     def generateId(cls, sourceNodeId: int, destNodeId: int) -> int:
         return hash((sourceNodeId, destNodeId))
+

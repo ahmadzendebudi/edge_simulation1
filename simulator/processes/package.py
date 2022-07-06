@@ -20,6 +20,11 @@ class Package:
             size += self.content.size
         return size
     
+    def __str__(self) -> str:
+        return ("Package({type: " + str(self.type) + " originId: " + str(self.originId) + " destId: " +
+                str(self.destId) + " packageId: " + str(self.packageId) + " content: " + 
+                str(self.content) + " route: " + str(self.route) + "})")
+    
 class PackageTools:
     @classmethod
     def appendRoute(cls, package: Package, nodeId: int) -> Package:

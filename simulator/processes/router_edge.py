@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from imp import is_frozen_package
 from typing import Dict, List, Sequence, Tuple
 from simulator.common import Common
 from simulator.config import Config
@@ -91,35 +92,44 @@ class RouterEdge(Process, ParcelTransmitterPlug):
     def sendParcel(self, parcel: Parcel) -> Parcel:
         destId = parcel.destNodeId
         transmitter = self.getTransmitter(destId)
-        if transmitter is None:
+        if transmitter is None and parcel.hops > 1:
             if parcel.type == Common.PARCEL_TYPE_PACKAGE:
-                Logger.log("!!WARNING!! A package is being repackaged, is it intentional?", 1)
-            route = self._routeMap.get(parcel.destNodeId(), None)
+                #Logger.log("Parcel content:" + str(parcel), 0)
+                #Logger.log("--------------------------", 0)
+                #Logger.log("Package content:" + str(parcel.content), 0)
+                #Logger.log("--------------------------", 0)
+                #Logger.log("connected edge: " + str(self._simulator.getNode(parcel.content.destId)._router._connection), 0)
+                #Logger.log("--------------------------", 0)
+                raise RuntimeError("!!WARNING!! A package is being repackaged, is it intentional?")
+            route = self._routeMap.get(parcel.destNodeId, None)
             if route is None:
                 self._waitingParcels.append(parcel)
-            else:
-                package = Package(Package.PACKAGE_TYPE_PAYLOAD, parcel.senderNodeId, parcel.destNodeId, 
-                                  self._getSequentialId(), route, parcel)
+            elif len(route) <= parcel.hops:
+                parcel.hops -= len(route)
+                package_route = route[:len(route) - 1]
                 nextHop = route[len(route) - 1]
+                package = Package(Package.PACKAGE_TYPE_PAYLOAD, parcel.senderNodeId, parcel.destNodeId, 
+                                  self._getSequentialId(), package_route, parcel)
                 forwardParcel = Parcel(Common.PARCEL_TYPE_PACKAGE, package.size(), package, self._nodeId, nextHop)
                 self.sendParcel(forwardParcel)
-                if not self._plug.isNodeOfInterest(parcel.destNodeId()):
-                    self._routeMap.pop(parcel.destNodeId(), None)
-        else:
+                if not self._plug.isNodeOfInterest(parcel.destNodeId):
+                    self._routeMap.pop(parcel.destNodeId, None)
+        elif not transmitter is None:
             transmitter.transmitQueue().put(parcel)
             self._simulator.registerEvent(Common.time(), transmitter.id())
 
     def receivePackage(self, parcel: Parcel) -> int:
         if parcel.type != Common.PARCEL_TYPE_PACKAGE:
-            raise "parcel is not a package"
+            raise RuntimeError("parcel is not a package")
         package: Package = parcel.content
         if package.type == Package.PACKAGE_TYPE_ROUTING:
             duplicatePackage = self._isDuplicateRouteBroadcast(package.originId, package.packageId)
             if not duplicatePackage:
                 if self._plug.isNodeOfInterest(package.originId) or self._hasWaitingParcel(package.originId):
-                    if len(package.route) < 2:
-                        raise "route length is smaller than 2, route is impossible"
-                    self._routeMap[package.originId] = package.route
+                    if not package.originId in self._mobileNodeMap:
+                        if len(package.route) < 2:
+                            raise RuntimeError("route length is smaller than 2, route is impossible")
+                        self._routeMap[package.originId] = package.route
                     self._resendWaitingParcels()
                 forwardPackage = PackageTools.appendRoute(package, self._nodeId)
                 for connection in self.getEdgeConnections():
@@ -131,11 +141,12 @@ class RouterEdge(Process, ParcelTransmitterPlug):
             if package.destId == self._nodeId:
                 self._plug.receiveRoutedParcel(parcel)
             elif len(package.route) > 0:
+                #print("package route before forwarding:" + str(package.route))#TODO remove
                 newPackage, nextHopId = PackageTools.popRoute(package)
                 parcel = Parcel(Common.PARCEL_TYPE_PACKAGE, newPackage.size(), newPackage, self._nodeId, nextHopId)
                 self.sendParcel(parcel)
             else:
-                raise "package hops exhusted and we haven't reached destination node"
+                raise RuntimeError("package hops exhusted and we haven't reached destination node")
     
     def getAllConnections(self):
         return map(lambda nodeItem: nodeItem.connection, list(self._mobileNodeMap.values()) + list(self._edgeNodeMap.values()))
