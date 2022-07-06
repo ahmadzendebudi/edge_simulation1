@@ -44,21 +44,21 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
         self._router = RouterEdge(simulator, self.id(), self)
         simulator.registerProcess(self._router)
 
-        edgeConnections, mobileConnections, duration = self._plug.updateEdgeNodeConnections(self.id(), self.externalId())
+        edgeConnections, mobileConnections, nextUpdateTime = self._plug.updateEdgeNodeConnections(self.id(), self.externalId())
         self._router.updateConnections(mobileConnections, edgeConnections)
         
-        if (duration != None):
+        if (nextUpdateTime != None):
             self._connectionProcess = Process()
             self._connectionProcess.wake = self.updateConnections
             simulator.registerProcess(self._connectionProcess)
-            simulator.registerEvent(Common.time() + duration, self._connectionProcess.id())
+            simulator.registerEvent(nextUpdateTime, self._connectionProcess.id())
     
     def updateConnections(self):
-        edgeConnections, mobileConnections, duration = self._plug.updateEdgeNodeConnections(self.id(), self.externalId())
+        edgeConnections, mobileConnections, nextUpdateTime = self._plug.updateEdgeNodeConnections(self.id(), self.externalId())
         self._router.updateConnections(mobileConnections, edgeConnections)
         
-        if (duration != None):
-            self._simulator.registerEvent(Common.time() + duration, self._connectionProcess.id())
+        if (nextUpdateTime != None):
+            self._simulator.registerEvent(nextUpdateTime, self._connectionProcess.id())
         
     def initializeProcesses(self, simulator: Simulator, edgeMultiplexSelector: TaskMultiplexerSelector,
                             mobileMultiplexSelector: TaskMultiplexerSelector = None):
