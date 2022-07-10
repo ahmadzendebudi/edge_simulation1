@@ -58,7 +58,8 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
         self._router.updateConnections(mobileConnections, edgeConnections)
         
         taskGeneration = Common.time() < Config.get("task_generation_duration")
-        if nextUpdateTime != None and taskGeneration:
+        waiting_list = len(self._router._waitingParcels) != 0
+        if nextUpdateTime != None and (taskGeneration or waiting_list):
             self._simulator.registerEvent(nextUpdateTime, self._connectionProcess.id())
         
     def initializeProcesses(self, simulator: Simulator, edgeMultiplexSelector: TaskMultiplexerSelector,

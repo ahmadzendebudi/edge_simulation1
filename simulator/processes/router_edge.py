@@ -26,6 +26,10 @@ class NodeItem:
     def __init__(self, connection: Connection, transmitter: ParcelTransmitter) -> None:
         self.connection = connection
         self.transmitter = transmitter
+class RouteItem:
+    def __init__(self, route: Tuple[int], update_time: int) -> None:
+        self.route = route
+        self.update_time = update_time
 
 class RouterEdge(Process, ParcelTransmitterPlug):  
     def __init__(self, simulator: Simulator, nodeId: int, plug: RouterEdgePlug) -> None:
@@ -38,6 +42,8 @@ class RouterEdge(Process, ParcelTransmitterPlug):
         self._transmitterIdToDestNodeIdMap: Dict[int, int] = {}
         self._routeBroadcast = []
         self._waitingParcels: List[Parcel] = []
+
+        self.ROUTER_UPDATE_TIMEOUT = Config.get("router_route_update_time_out")
 
     def updateConnections(self, mobileConnections: Sequence[Connection], edgeConnections: Sequence[Connection]):
         self._transmitterIdToDestNodeIdMap.clear()
@@ -94,11 +100,12 @@ class RouterEdge(Process, ParcelTransmitterPlug):
         transmitter = self.getTransmitter(destId)
         if transmitter is None and parcel.hops > 1:
             if parcel.type == Common.PARCEL_TYPE_PACKAGE:
-                raise RuntimeError("!!WARNING!! A package is being repackaged, is it intentional?")
-            route = self._routeMap.get(parcel.destNodeId, None)
-            if route is None:
+                Logger.log("!!WARNING!! A package is being repackaged, is it intentional? | " + str(parcel), 1)
+            routeItem: RouteItem = self._routeMap.get(parcel.destNodeId, None)
+            if routeItem is None:
                 self._waitingParcels.append(parcel)
-            elif len(route) <= parcel.hops:
+            elif len(routeItem.route) <= parcel.hops:
+                route = routeItem.route
                 parcel.hops -= len(route)
                 package_route = route[:len(route) - 1]
                 nextHop = route[len(route) - 1]
@@ -106,7 +113,8 @@ class RouterEdge(Process, ParcelTransmitterPlug):
                                   self._getSequentialId(), package_route, parcel)
                 forwardParcel = Parcel(Common.PARCEL_TYPE_PACKAGE, package.size(), package, self._nodeId, nextHop)
                 self.sendParcel(forwardParcel)
-                if not self._plug.isNodeOfInterest(parcel.destNodeId):
+                if (not self._plug.isNodeOfInterest(parcel.destNodeId) and not self._hasWaitingParcel(parcel.destNodeId) and
+                 routeItem.update_time + self.ROUTER_UPDATE_TIMEOUT < Common.time()):
                     self._routeMap.pop(parcel.destNodeId, None)
         elif not transmitter is None:
             transmitter.transmitQueue().put(parcel)
@@ -119,11 +127,11 @@ class RouterEdge(Process, ParcelTransmitterPlug):
         if package.type == Package.PACKAGE_TYPE_ROUTING:
             duplicatePackage = self._isDuplicateRouteBroadcast(package.originId, package.packageId)
             if not duplicatePackage:
-                if self._plug.isNodeOfInterest(package.originId) or self._hasWaitingParcel(package.originId):
-                    if not package.originId in self._mobileNodeMap:
-                        if len(package.route) < 2:
-                            raise RuntimeError("route length is smaller than 2, route is impossible")
-                        self._routeMap[package.originId] = package.route
+                if not package.originId in self._mobileNodeMap:
+                    if len(package.route) < 2:
+                        raise RuntimeError("route length is smaller than 2, route is impossible")
+                    self._routeMap[package.originId] = RouteItem(package.route, Common.time())
+                if self._hasWaitingParcel(package.originId):
                     self._resendWaitingParcels()
                 forwardPackage = PackageTools.appendRoute(package, self._nodeId)
                 for connection in self.getEdgeConnections():

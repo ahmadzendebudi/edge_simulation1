@@ -20,6 +20,7 @@
     "connection_actual_datarate_high": 1.5,
 
     "router_route_broadcast_record_lifespan": 10,
+    "router_route_update_time_out": 10,
 
     "task_from_task_list_listsize": 10,
 
