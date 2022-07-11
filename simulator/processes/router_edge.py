@@ -36,7 +36,7 @@ class RouterEdge(Process, ParcelTransmitterPlug):
         self._nodeId = nodeId
         self._plug = plug
         self._simulator = simulator
-        self._routeMap: Dict[int, Tuple[int]] = {}
+        self._routeMap: Dict[int, RouteItem] = {}
         self._mobileNodeMap: Dict[int, NodeItem] = {}
         self._edgeNodeMap: Dict[int, NodeItem] = {}
         self._transmitterIdToDestNodeIdMap: Dict[int, int] = {}
@@ -93,6 +93,7 @@ class RouterEdge(Process, ParcelTransmitterPlug):
             
             self._transmitterIdToDestNodeIdMap[transmitter.id()] = connection.destNode()
         #we should examine the waiting parcels after all connections are updated
+        self._removeInvalidRoutes()
         self._resendWaitingParcels()
 
     def sendParcel(self, parcel: Parcel) -> Parcel:
@@ -113,9 +114,6 @@ class RouterEdge(Process, ParcelTransmitterPlug):
                                   self._getSequentialId(), package_route, parcel)
                 forwardParcel = Parcel(Common.PARCEL_TYPE_PACKAGE, package.size(), package, self._nodeId, nextHop)
                 self.sendParcel(forwardParcel)
-                if (not self._plug.isNodeOfInterest(parcel.destNodeId) and not self._hasWaitingParcel(parcel.destNodeId) and
-                 routeItem.update_time + self.ROUTER_UPDATE_TIMEOUT < Common.time()):
-                    self._routeMap.pop(parcel.destNodeId, None)
         elif not transmitter is None:
             transmitter.transmitQueue().put(parcel)
             self._simulator.registerEvent(Common.time(), transmitter.id())
@@ -196,6 +194,16 @@ class RouterEdge(Process, ParcelTransmitterPlug):
         self._waitingParcels.clear()
         for parcel in oldWaitingParcels:
             self.sendParcel(parcel)
+
+    def _removeInvalidRoutes(self):
+        droplist = []
+        for nodeId, route in self._routeMap.items():
+            keepRoute = self.getConnection(nodeId) == None# and (self._plug.isNodeOfInterest(nodeId) or
+            #    self._hasWaitingParcel(nodeId) or route.update_time + self.ROUTER_UPDATE_TIMEOUT > Common.time())
+            if not keepRoute:
+                droplist.append(nodeId)
+        for id in droplist:
+            self._routeMap.pop(id, None)
 
     def _hasWaitingParcel(self, destId: int) -> bool:
         return any(map(lambda parcel: parcel.destNodeId == destId, self._waitingParcels))
