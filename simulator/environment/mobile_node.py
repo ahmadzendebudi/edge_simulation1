@@ -14,7 +14,7 @@ from simulator.core.task_queue import TaskQueue
 from simulator.core.task import Task
 from simulator.environment.task_node import TaskNode
 from simulator.processes.router_mobile import RouterMobile, RouterMobilePlug
-from simulator.task_multiplexing.selector import MultiplexerSelectorModel
+from simulator.task_multiplexing.selector import MultiplexerSelectorBehaviour, MultiplexerSelectorModel
 from simulator.task_multiplexing.transition import Transition
 from simulator.task_multiplexing.transition_recorder import TransitionRecorder
 from simulator.logger import Logger
@@ -191,11 +191,12 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         delay = Common.time() - task.arrivalTime()
         transition = self._transitionRecorder.completeTransition(task.id(), delay, task.powerConsumed)
         Logger.log("Task Completed | Task: {task}".format(task=task), 2)
-        if self._multiplexSelector.behaviour().trainLocal:
-            self._multiplexSelector.addToBuffer(transition)
-        elif self._multiplexSelector.behaviour().trainRemote:
+        if self._multiplexSelector.behaviour().trainMethod == MultiplexerSelectorBehaviour.TRAIN_REMOTE:
             parcel = Parcel(Common.PARCEL_TYPE_TRANSITION, sys.getsizeof(transition), transition, self._id, self._router.getConnection().destNode())
             self._router.sendParcel(parcel)
+        else:
+            self._multiplexSelector.addToBuffer(transition)
+            
         
     
     #Router:

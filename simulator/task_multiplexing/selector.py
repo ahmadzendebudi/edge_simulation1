@@ -6,11 +6,14 @@ from simulator.core import Task
 from simulator.task_multiplexing.transition import Transition
 
 class MultiplexerSelectorBehaviour:
-    trainLocal = True
-    trainRemote = False
+    TRAIN_LOCAL = 0
+    TRAIN_REMOTE = 1
+    TRAIN_SHARED = 2
+
+    trainMethod = TRAIN_LOCAL
 
     def __str__(self) -> str:
-        return "trainLocal: " + str(self.trainLocal) + ", trainRemote: " + str(self.trainRemote)
+        return "trainMethod: " + str(self.trainMethod) 
 
 class MultiplexerSelectorModel:
     model = None

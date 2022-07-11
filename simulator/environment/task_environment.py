@@ -5,7 +5,7 @@ from simulator.core.simulator import Simulator
 from simulator.environment.edge_node import EdgeNode
 from simulator.environment.mobile_node import MobileNode
 from simulator.core.environment import Environment
-from simulator.task_multiplexing.selector import TaskMultiplexerSelector
+from simulator.task_multiplexing.selector import MultiplexerSelectorBehaviour, TaskMultiplexerSelector
 from simulator.task_multiplexing.transition_recorder import Transition, TwoStepTransitionRecorder
    
 class TaskEnvironment(Environment):
@@ -43,20 +43,28 @@ class TaskEnvironment(Environment):
 
         for edgeNode in self._edgeNodes:
             edgeNode.setTransitionRecorder(TwoStepTransitionRecorder(edgeTransitionWatchers))
-            if moblie_multiplex_selector.behaviour().trainLocal:
-                edgeNode.initializeProcesses(simulator, edge_multiplex_selector)
-            else:
-                edgeNode.initializeProcesses(simulator, edge_multiplex_selector, 
-                        self._mobileSelectorGenerator(MobileNode.fetchStateShape(), self._mobileRewardFunction))
-                #edgeNode.initializeProcesses(simulator, edge_multiplex_selector, moblie_multiplex_selector)
+
+            edge_selector = edge_multiplex_selector
+            mobile_selector = None
+
+            if moblie_multiplex_selector.behaviour().trainMethod == MultiplexerSelectorBehaviour.TRAIN_REMOTE:
+                mobile_selector = self._mobileSelectorGenerator(MobileNode.fetchStateShape(), self._mobileRewardFunction)
+            if edge_multiplex_selector.behaviour().trainMethod != MultiplexerSelectorBehaviour.TRAIN_SHARED:
+                edge_selector = self._edgeSelectorGenerator(EdgeNode.fetchStateShape(), self._edgeRewardFunction)
+            
+            edgeNode.initializeProcesses(simulator, edge_selector, mobile_selector)
+            
 
         
         for mobileNode in self._mobileNodes:
             mobileNode.setTransitionRecorder(TwoStepTransitionRecorder(mobileTransitionWatchers))
-            if moblie_multiplex_selector.behaviour().trainLocal:
-                mobileNode.initializeProcesses(simulator, moblie_multiplex_selector)
-            else:
-                mobileNode.initializeProcesses(simulator, self._mobileSelectorGenerator(MobileNode.fetchStateShape(), self._mobileRewardFunction))
+            
+            mobile_selector = moblie_multiplex_selector
+
+            if moblie_multiplex_selector.behaviour().trainMethod == MultiplexerSelectorBehaviour.TRAIN_REMOTE:
+                mobile_selector = self._mobileSelectorGenerator(MobileNode.fetchStateShape(), self._mobileRewardFunction)
+            
+            mobileNode.initializeProcesses(simulator, mobile_selector)
         
     
     def edgeNode(self, id: int) -> EdgeNode:

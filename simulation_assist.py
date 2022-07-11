@@ -97,14 +97,23 @@ class SimulationAssist:
         edgeReporter = TransitionReporter(simulator, edgeReportPath) 
 
         behaviourRemote = MultiplexerSelectorBehaviour()
-        behaviourRemote.trainLocal = False
-        behaviourRemote.trainRemote = True
+        behaviourRemote.trainMethod = MultiplexerSelectorBehaviour.TRAIN_REMOTE
+
+        behaviourShared = MultiplexerSelectorBehaviour()
+        behaviourShared.trainMethod = MultiplexerSelectorBehaviour.TRAIN_SHARED
+
+        behaviourLocal = MultiplexerSelectorBehaviour()
+        behaviourLocal.trainMethod = MultiplexerSelectorBehaviour.TRAIN_LOCAL
 
         selectors = {
             "dql": lambda state, rewardFunction: TaskMultiplexerSelectorDql(state, rewardFunction, Config.get("dql_training_buffer_size"), 
                                                             Config.get("dql_training_interval")),
             "dql_remote": lambda state, rewardFunction: TaskMultiplexerSelectorDql(state, rewardFunction, Config.get("dql_training_buffer_size"), 
                                                             Config.get("dql_training_interval"), behaviourRemote),
+            "dql_local": lambda state, rewardFunction: TaskMultiplexerSelectorDql(state, rewardFunction, Config.get("dql_training_buffer_size"), 
+                                                            Config.get("dql_training_interval"), behaviourLocal),
+            "dql_shared": lambda state, rewardFunction: TaskMultiplexerSelectorDql(state, rewardFunction, Config.get("dql_training_buffer_size"), 
+                                                            Config.get("dql_training_interval"), behaviourShared),
             "local": lambda state, rewardFunction: TaskMultiplexerSelectorLocal(rewardFunction),
             "remote": lambda state, rewardFunction: TaskMultiplexerSelectorRemote(rewardFunction),
             "random": lambda state, rewardFunction: TaskMultiplexerSelectorRandom(rewardFunction),

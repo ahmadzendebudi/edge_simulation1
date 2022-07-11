@@ -18,7 +18,7 @@ from simulator.processes.router_edge import RouterEdge, RouterEdgePlug
 from simulator.processes.task_generator import TaskGenerator
 from simulator.processes.task_multiplexer import TaskMultiplexer, TaskMultiplexerPlug
 from simulator.processes.parcel_transmitter import ParcelTransmitter, ParcelTransmitterPlug
-from simulator.task_multiplexing.selector import TaskMultiplexerSelector
+from simulator.task_multiplexing.selector import MultiplexerSelectorBehaviour, TaskMultiplexerSelector
 from simulator.task_multiplexing.transition import Transition
       
 class EdgeNodePlug:
@@ -137,6 +137,9 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
                 for connection in self._router.getEdgeConnections():
                     parcel = Parcel(Common.PARCEL_TYPE_TRANSITION, sys.getsizeof(transition), transition, self._id, connection.destNode())
                     self._router.sendParcel(parcel)
+        elif parcel.type == Common.PARCEL_TYPE_EDGE_TRANSITION:
+            transition = parcel.content
+            self._multiplexSelector.addToBuffer(transition)
         else:
             raise RuntimeError("Parcel type not supported for edge node")
     
@@ -237,6 +240,11 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
             delay = Common.time() - task.arrivalTime()
             transition = self._transitionRecorder.completeTransition(task.id(), delay, task.powerConsumed)
             self._multiplexSelector.addToBuffer(transition)
+            if self._multiplexSelector.behaviour().trainMethod == MultiplexerSelectorBehaviour.TRAIN_REMOTE:
+                for connection in self._router.getEdgeConnections():
+                    parcel = Parcel(Common.PARCEL_TYPE_EDGE_TRANSITION, sys.getsizeof(transition), transition, self._id, connection.destNode())
+                    self._router.sendParcel(parcel)
+        
         taskSenderNodeId = task.route[len(task.route) - 1]
         task.route = task.route[:len(task.route) - 1]
         size = Config.get("task_result_parcel_size_in_bits")

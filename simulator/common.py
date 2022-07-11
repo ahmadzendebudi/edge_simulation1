@@ -6,6 +6,7 @@ class Common:
     PARCEL_TYPE_TASK_RESULT = "parcelTypeTaskResult"
     PARCEL_TYPE_NODE_STATE = "parcelTypeNodeState"
     PARCEL_TYPE_TRANSITION = "parcelTypeTransition"
+    PARCEL_TYPE_EDGE_TRANSITION = "parcelTypeEdgeTransition"
     PARCEL_TYPE_ANN_PARAMS = "parcelTypeAnnParams"
     PARCEL_TYPE_PACKAGE = "parcelTypePackage"
     
