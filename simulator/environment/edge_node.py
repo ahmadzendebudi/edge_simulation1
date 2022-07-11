@@ -48,7 +48,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
         self._router.updateConnections(mobileConnections, edgeConnections)
         
         if (nextUpdateTime != None):
-            self._connectionProcess = Process()
+            self._connectionProcess = Process(extends_runtime=False)
             self._connectionProcess.wake = self.updateConnections
             simulator.registerProcess(self._connectionProcess)
             simulator.registerEvent(nextUpdateTime, self._connectionProcess.id())
@@ -57,9 +57,7 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
         edgeConnections, mobileConnections, nextUpdateTime = self._plug.updateEdgeNodeConnections(self.id(), self.externalId())
         self._router.updateConnections(mobileConnections, edgeConnections)
         
-        taskGeneration = Common.time() < Config.get("task_generation_duration")
-        waiting_list = len(self._router._waitingParcels) != 0
-        if nextUpdateTime != None and (taskGeneration or waiting_list):
+        if nextUpdateTime != None:
             self._simulator.registerEvent(nextUpdateTime, self._connectionProcess.id())
         
     def initializeProcesses(self, simulator: Simulator, edgeMultiplexSelector: TaskMultiplexerSelector,
@@ -74,31 +72,16 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
 
         self._mobileMultiplexSelector = mobileMultiplexSelector
         
-        
-        self._lastTransmitEmptyQueues = False
-        '''indicates if the local and multiplex queues while sending the last states were empty'''
-        
-        self._stateTransmissionUpdate()
-            
-    def wake(self) -> None:
-        self._stateTransmissionUpdate()
-        return super().wake()
+        self._stateTransmissionProcess = Process(extends_runtime=False)
+        self._stateTransmissionProcess.wake = self._stateTransmissionUpdate
+        simulator.registerProcess(self._stateTransmissionProcess)
+        simulator.registerEvent(Common.time(), self._stateTransmissionProcess.id())
 
     def _stateTransmissionUpdate(self):
-        if (not hasattr(self, '_lastStateTransmission') or
-            Common.time() - self._lastStateTransmission >= Config.get("node_state_transmission_interval")):
-            taskGeneration = Common.time() < Config.get("task_generation_duration")
-            emptyQueues = self.currentWorkload() == 0 and self._multiplexQueue.qsize() == 0
-            if taskGeneration or not emptyQueues or not self._lastTransmitEmptyQueues:
-                self._lastTransmitEmptyQueues = emptyQueues
-                self._lastStateTransmission = Common.time()
-                self._simulator.registerEvent(Common.time() + Config.get("node_state_transmission_interval"), self.id())
-                self._transmitNodeState()
-            
-    def _transmitNodeState(self):
+        self._lastStateTransmission = Common.time()
+        self._simulator.registerEvent(Common.time() + Config.get("node_state_transmission_interval"), self._stateTransmissionProcess.id())
         if Logger.levelCanLog(3):
             Logger.log("state transmission edgeId:" + str(self.id()), 3)
-        
         #Transmit state   
         content = [self.id(), self.currentWorkload(), self._localQueue.qsize()]
         Logger.log("edge load: " + str(content), 2)
@@ -106,14 +89,13 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
         for connection in self._router.getAllConnections():
             parcel = Parcel(Common.PARCEL_TYPE_NODE_STATE, size, content, self.id(), connection.destNode(), 1)
             self._router.sendParcel(parcel)
-        
         #Transmit mobile ANN parameters
         if self._mobileMultiplexSelector != None:
             model = self._mobileMultiplexSelector.extractModel()
             for connection in self._router.getMobileConnections():
                 parcel = Parcel(Common.PARCEL_TYPE_ANN_PARAMS, model.size, model, self.id(), connection.destNode(), 1)
                 self._router.sendParcel(parcel)
-        
+            
     def _receiveParcel(self, parcel: Parcel) -> bool:
         parcel.hops -= 1
         if parcel.type == Common.PARCEL_TYPE_PACKAGE:

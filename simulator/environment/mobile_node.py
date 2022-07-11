@@ -73,7 +73,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
 
         
         if (nextUpdateTime != None):
-            self._connectionProcess = Process()
+            self._connectionProcess = Process(extends_runtime=False)
             self._connectionProcess.wake = self.updateConnection
             simulator.registerProcess(self._connectionProcess)
             simulator.registerEvent(nextUpdateTime, self._connectionProcess.id())
@@ -82,8 +82,7 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         edgeConnection, nextUpdateTime = self._plug.updateMobileNodeConnection(self.id(), self.externalId())
         self._router.updateConnection(edgeConnection)
 
-        taskGeneration = Common.time() < Config.get("task_generation_duration")
-        if nextUpdateTime != None and taskGeneration:
+        if nextUpdateTime != None:
             self._simulator.registerEvent(nextUpdateTime, self._connectionProcess.id())
         
     def initializeProcesses(self, simulator: Simulator, multiplexSelector: TaskMultiplexerSelector):

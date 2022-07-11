@@ -8,6 +8,7 @@ from simulator.core.process import Process
 class Node(Process):
     def __init__(self, externalId: int) -> None:
         self._externalId = externalId
+        super().__init__()
     
     def setup(self, id: int) -> None:
         self._id = id

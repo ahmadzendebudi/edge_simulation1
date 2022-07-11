@@ -22,10 +22,12 @@ class Simulator:
         self._taskMap = {}
         self._connectionMap = {}
         self._parcelQueueMap = {}
+        self._runtime_extension = Config.get("task_generation_duration")
     
     def run(self):
         eventHeap = self._eventHeap
-        while eventHeap.size() > 0:
+        time = 0
+        while eventHeap.size() > 0 and time <= self._runtime_extension:
             time, processId = eventHeap.nextEvent()
             Common.setTime(time)
             eventProcess = self.getProcess(processId)
@@ -90,6 +92,8 @@ class Simulator:
     
     def registerEvent(self, time: int, processId: int) -> None:
         self._eventHeap.addEvent(time, processId)
+        if self.getProcess(processId)._extends_runtime and self._runtime_extension < time:
+            self._runtime_extension = time
         
     def getParcelQueue(self, id: int) -> TaskQueue:
         return self._parcelQueueMap[id]
