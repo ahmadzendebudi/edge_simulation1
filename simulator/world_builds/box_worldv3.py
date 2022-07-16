@@ -16,21 +16,28 @@ class Device:
     HEIGHT = 60
     WIDTH = 240
 
-    def __init__(self, id, node, location=None) -> None:
+    def __init__(self, id, node, location=None, centered = False) -> None:
         self.id = id
         self.node = node
+        self.centered = centered
         if location is None:
             self.location = self.getRandomLocation()
         else:
             self.location = location
 
     def getRandomLocation(self):
-        return np.array([np.random.randint(0, Device.HEIGHT), np.random.randint(0, Device.WIDTH)])
+        if self.centered:
+            min_edge = min(Device.HEIGHT, Device.WIDTH)
+            height_pad = (Device.HEIGHT - min_edge) / 2
+            width_pad = (Device.WIDTH - min_edge) / 2
+            return np.array([height_pad + np.random.randint(0, min_edge), width_pad + np.random.randint(0, min_edge)])
+        else:
+            return np.array([np.random.randint(0, Device.HEIGHT), np.random.randint(0, Device.WIDTH)])
 
 
 class MobileDevice(Device):
-    def __init__(self, id, node, location=None, destLocation=None, time=0, velocity=None, edgeId=None) -> None:
-        super().__init__(id, node, location)
+    def __init__(self, id, node, location=None, destLocation=None, time=0, velocity=None, edgeId=None, centered = False) -> None:
+        super().__init__(id, node, location, centered)
         self.destLocation = destLocation
         self.time = time
         self.edgeId = edgeId
@@ -70,6 +77,10 @@ class BoxWorldv3(EdgeNodePlug, MobileNodePlug):
     delay_coefficient = Config.get("delay_coefficient")
     power_coefficient = Config.get("power_coefficient")
 
+    def __init__(self) -> None:
+        self.centered = Config.get("boxworld_centered_mobile_nodes")
+        super().__init__()
+
     def build(self) -> Tuple[Sequence[EdgeNode], Sequence[MobileNode]]:
         self._loadConfig()
         edgeNodesLocation = [np.array([30, 30]), np.array(
@@ -94,7 +105,7 @@ class BoxWorldv3(EdgeNodePlug, MobileNodePlug):
             cores = self._mobile_cpu_cores
             mobileNode = MobileNode(id, self, flops, cores,
                                     metteredPowerConsumtionPerTFlops=mobileWattsPerTFlops)
-            device = MobileDevice(id, mobileNode)
+            device = MobileDevice(id, mobileNode, centered=self.centered)
             self._mobileDevices[id] = device
 
         self.update_connections()

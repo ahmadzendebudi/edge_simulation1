@@ -65,6 +65,7 @@
     "boxworld_mobile_velocity_min": 1,
     "boxworld_mobile_velocity_max": 5,
     "boxworld_update_interval": 1,
+    "boxworld_centered_mobile_nodes": false,
 
     "#selectors": "greedy, dql, local, remote, random",
     "mobile_selector": "dql",
