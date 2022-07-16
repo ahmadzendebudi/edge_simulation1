@@ -12,7 +12,7 @@
     "task_kflops_per_bit_sd": 500,
     "task_kflops_per_bit_min": 500,
     "task_kflops_per_bit_max": 3000,
-    "random_seed": 957833725,
+    "random_seed": 657833725,
     "initial_unique_id": 1,
     "state_parcel_size_per_variable_in_bits": 64,
     "task_result_parcel_size_in_bits": 1024,
