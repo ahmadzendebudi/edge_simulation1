@@ -1,5 +1,5 @@
 {
-    "task_generation_duration": 100,
+    "task_generation_duration": 300,
     "dql_training_period": 300,
     "node_state_transmission_interval": 1,
     "task_generator_prefetch_time": 50,
