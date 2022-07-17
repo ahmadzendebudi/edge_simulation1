@@ -43,7 +43,7 @@ class TaskMultiplexer(Process):
         if task.hopLimit() > 0:
             actionObject, selection = self._selector.action(task, state1)
             recordTransition = True
-        if selection is None:
+        if selection is None or selection == 0:
             task.addLog("local run(" + str(Common.time()) + ")")
             self._plug.taskLocalExecution(task, self.id())
         else:
