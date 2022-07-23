@@ -84,7 +84,7 @@ class BoxWorldv3(EdgeNodePlug, MobileNodePlug):
     def build(self) -> Tuple[Sequence[EdgeNode], Sequence[MobileNode]]:
         self._loadConfig()
         edgeNodesLocation = [np.array([30, 30]), np.array(
-            [30, 90]), np.array([30, 150]), np.array([30, 210])]
+            [30, 90]), np.array([75, 150]), np.array([25, 210])]
 
         self._edgeDevices: Dict[int, EdgeDevice] = {}
         self._mobileDevices: Dict[int, MobileDevice] = {}
