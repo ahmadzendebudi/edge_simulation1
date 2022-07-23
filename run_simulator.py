@@ -14,6 +14,13 @@ varients.append({"step": step, "config": "boxworld_mobile_nodes", "values": [100
 varients.append({"step": step, "config": "task_generator_lambda", "values": [0.5]})
 varients.append({"step": step, "config": "boxworld_centered_mobile_nodes", "values": [True]})
 
+step += 1
+varients.append({"step": step, "config": "edge_selector", "values": ["greedy"]})
+varients.append({"step": step, "config": "mobile_selector", "values": ["greedy"]})
+varients.append({"step": step, "config": "boxworld_mobile_nodes", "values": [100]})
+varients.append({"step": step, "config": "task_generator_lambda", "values": [0.5]})
+varients.append({"step": step, "config": "boxworld_centered_mobile_nodes", "values": [True]})
+
 
 """
 step += 1
