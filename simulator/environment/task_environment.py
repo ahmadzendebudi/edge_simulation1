@@ -61,7 +61,7 @@ class TaskEnvironment(Environment):
             
             mobile_selector = moblie_multiplex_selector
 
-            if moblie_multiplex_selector.behaviour().trainMethod == MultiplexerSelectorBehaviour.TRAIN_REMOTE:
+            if moblie_multiplex_selector.behaviour().trainMethod != MultiplexerSelectorBehaviour.TRAIN_SHARED:
                 mobile_selector = self._mobileSelectorGenerator(MobileNode.fetchStateShape(), self._mobileRewardFunction)
             
             mobileNode.initializeProcesses(simulator, mobile_selector)
