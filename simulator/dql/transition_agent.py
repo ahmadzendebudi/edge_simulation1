@@ -62,16 +62,24 @@ class TransitionAgent:
 
         train_step_counter = tf.Variable(0)
 
-        self._agent = agents.dqn.dqn_agent.DqnAgent(
-            self._timestepTensorSpec(),
-            self._actionTensorSpec(),
-            self._qNetwork(),
-            optimizer=optimizer,
-            td_errors_loss_fn=utils.common.element_wise_squared_loss,
-            train_step_counter=train_step_counter)
+        if (Config.get("dql_method_ddql")):
+            self._agent = agents.dqn.dqn_agent.DdqnAgent(
+                self._timestepTensorSpec(),
+                self._actionTensorSpec(),
+                self._qNetwork(),
+                optimizer=optimizer,
+                td_errors_loss_fn=utils.common.element_wise_squared_loss,
+                train_step_counter=train_step_counter)
+        else:
+            self._agent = agents.dqn.dqn_agent.DqnAgent(
+                self._timestepTensorSpec(),
+                self._actionTensorSpec(),
+                self._qNetwork(),
+                optimizer=optimizer,
+                td_errors_loss_fn=utils.common.element_wise_squared_loss,
+                train_step_counter=train_step_counter)
 
         self._agent.initialize()
-    
     
     def _timestepTensorSpec(self) -> tj.TimeStep:
         return specs.tensor_spec.from_spec(
