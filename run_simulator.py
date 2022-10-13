@@ -8,19 +8,12 @@ varients = []
 step = 0
 
 step += 1
-varients.append({"step": step, "config": "edge_selector", "values": ["dql_remote"]})
-varients.append({"step": step, "config": "mobile_selector", "values": ["dql_remote"]})
+varients.append({"step": step, "config": "edge_selector", "values": ["regression_shared"]})
+varients.append({"step": step, "config": "mobile_selector", "values": ["regression_shared"]})
 varients.append({"step": step, "config": "boxworld_mobile_nodes", "values": [50]})
 varients.append({"step": step, "config": "task_generator_lambda", "values": [0.5]})
 varients.append({"step": step, "config": "boxworld_centered_mobile_nodes", "values": [True]})
 
-step += 1
-varients.append({"step": step, "config": "edge_selector", "values": ["dql_remote"]})
-varients.append({"step": step, "config": "mobile_selector", "values": ["dql_remote"]})
-varients.append({"step": step, "config": "boxworld_mobile_nodes", "values": [50]})
-varients.append({"step": step, "config": "task_generator_lambda", "values": [0.5]})
-varients.append({"step": step, "config": "boxworld_centered_mobile_nodes", "values": [True]})
-varients.append({"step": step, "config": "dql_method_ddql", "values": [True]})
 
 """
 step += 1

@@ -23,6 +23,8 @@ class TaskMultiplexerSelectorRegression(TaskMultiplexerSelector):
         
         self._trainInterval = trainInterval
         self._trainIntervalCounter = 0
+        self._buffersize = bufferSize
+
         self.generateModel()
 
         self._buffer: Deque[Transition] = deque()
@@ -58,21 +60,22 @@ class TaskMultiplexerSelectorRegression(TaskMultiplexerSelector):
     def _addToBuffer(self, transition: Transition):
         self._buffer.append(transition)
 
-        if (len(self._buffer) > 1000) :
+        if (len(self._buffer) > self._buffersize) :
             self._buffer.popleft()
+
+        self._trainIntervalCounter += 1
+        if self._trainIntervalCounter > self._trainInterval:
+            self._trainIntervalCounter = 0
+            self._train()
             
     def _train(self) -> None:
-        train_features = np.fromiter(map(lambda transaction: np.append(transaction.state1, transaction.action), self._buffer))
-        print("train_features")
-        print(train_features)
-        train_labels = np.fromiter(map(lambda transaction: transaction.reward(), self._buffer))
-        print("train_features")
-        print(train_features)
-
+        train_features = np.stack(map(lambda transaction: np.append(transaction.state1, transaction.action), self._buffer))
+        train_labels = np.stack(map(lambda transaction: transaction.reward(), self._buffer))
+        
         normalizer = tf.keras.layers.Normalization(axis=-1)
         normalizer.adapt(np.array(train_features))
 
-        self._model = self.generateModel(normalizer)
+        self.generateModel(normalizer)
         self._model.fit(
             train_features,
             train_labels,

@@ -10,6 +10,7 @@ from simulator.environment.task_environment import TaskEnvironment
 from simulator.logger import LogOutputConsolePrint, LogOutputTextFile, Logger
 from simulator.processes.task_generator import TaskGenerator
 from simulator.task_multiplexing.selector import MultiplexerSelectorBehaviour
+from simulator.task_multiplexing.selector_regression import TaskMultiplexerSelectorRegression
 from simulator.world_builds.box_world import BoxWorld
 from simulator.reporters import TransitionReporter
 from simulator.task_multiplexing import TaskMultiplexerSelectorDql
@@ -115,6 +116,12 @@ class SimulationAssist:
                                                             Config.get("dql_training_interval"), behaviourLocal),
             "dql_shared": lambda state, rewardFunction: TaskMultiplexerSelectorDql(state, rewardFunction, Config.get("dql_training_buffer_size"), 
                                                             Config.get("dql_training_interval"), behaviourShared),
+            "regression_remote": lambda state, rewardFunction: TaskMultiplexerSelectorRegression(state, rewardFunction, Config.get("regression_training_buffer_size"), 
+                                                            Config.get("regression_training_interval"), behaviourRemote),
+            "regression_local": lambda state, rewardFunction: TaskMultiplexerSelectorRegression(state, rewardFunction, Config.get("regression_training_buffer_size"), 
+                                                            Config.get("regression_training_interval"), behaviourLocal),
+            "regression_shared": lambda state, rewardFunction: TaskMultiplexerSelectorRegression(state, rewardFunction, Config.get("regression_training_buffer_size"), 
+                                                            Config.get("regression_training_interval"), behaviourShared),
             "local": lambda state, rewardFunction: TaskMultiplexerSelectorLocal(rewardFunction),
             "remote": lambda state, rewardFunction: TaskMultiplexerSelectorRemote(rewardFunction),
             "random": lambda state, rewardFunction: TaskMultiplexerSelectorRandom(rewardFunction),
