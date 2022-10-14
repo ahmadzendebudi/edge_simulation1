@@ -20,13 +20,7 @@ class TransitionAgent:
         self._observation_spec = observation_spec
         self._action_spec = action_spec
         self._buffer = TransitionBuffer(bufferSize)
-        Logger.log(">>>>>> timestep-sepc create agent", 0)
-        print(self._timestepTensorSpec())
-        Logger.log(">>>>>> action-sepc create agent", 0)
-        print(self._actionTensorSpec())
-        Logger.log(">>>>>> before create agent", 0)
         self._createAgent()
-        Logger.log(">>>>>> after create agent", 0)
         self._collectPolicy = policies.py_tf_eager_policy.PyTFEagerPolicy(
             self._agent.collect_policy, use_tf_function=True)
         self._policy = policies.py_tf_eager_policy.PyTFEagerPolicy(
