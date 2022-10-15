@@ -1,12 +1,12 @@
 from abc import abstractmethod
-from typing import Callable, List
+from typing import Any, Callable, Collection, List
 from simulator.core import Node
 from simulator.core import TaskQueue
 from simulator.core.simulator import Simulator
 from simulator.core.task import Task
 from simulator.task_multiplexing.state_handler import StateHandler
 from simulator.task_multiplexing.transition import Transition
-from simulator.task_multiplexing.transition_recorder import TransitionRecorder, TwoStepTransitionRecorder
+from simulator.task_multiplexing.transition_recorder import TransitionRecorder
 from simulator.processes.task_runner import TaskRunner, TaskRunnerPlug
 
 class TaskNode(Node, StateHandler, TaskRunnerPlug):
@@ -36,13 +36,13 @@ class TaskNode(Node, StateHandler, TaskRunnerPlug):
     def initializeConnection(self, simulator: Simulator):
         pass
     
-    def initializeProcesses(self, simulator: Simulator):
+    def initializeProcesses(self, simulator: Simulator, utilizationWatchers: Collection[Callable[[Task, float, float], Any]]):
         self._simulator = simulator
         self._localQueue = TaskQueue()
         simulator.registerTaskQueue(self._localQueue)
         self._taskRunners: List[TaskRunner] = []
         for _ in range(0, self._cores):
-            taskRunner = TaskRunner(self, self._flops, self._metteredPowerConsumtionPerTFlops)
+            taskRunner = TaskRunner(self, self._flops, self._metteredPowerConsumtionPerTFlops, utilizationWatchers)
             simulator.registerProcess(taskRunner)
             self._taskRunners.append(taskRunner)
     

@@ -9,6 +9,7 @@ from simulator import Config
 from simulator.environment.task_environment import TaskEnvironment
 from simulator.logger import LogOutputConsolePrint, LogOutputTextFile, Logger
 from simulator.processes.task_generator import TaskGenerator
+from simulator.reporters.utilization_reporter import UtilizationReporter
 from simulator.task_multiplexing.selector import MultiplexerSelectorBehaviour
 from simulator.task_multiplexing.selector_regression import TaskMultiplexerSelectorRegression
 from simulator.task_multiplexing.selector_reinforce import TaskMultiplexerSelectorReinforce
@@ -94,10 +95,16 @@ class SimulationAssist:
         edgeReward, mobileReward = world.defaultRewards()
 
         simulator = Simulator()
+        
         mobileReportPath = reportPath + 'reportmobile' + Common.simulationRunId() + ".pkl"
         edgeReportPath = reportPath + 'reportedge' + Common.simulationRunId() + ".pkl"
         mobileReporter = TransitionReporter(simulator, mobileReportPath) 
         edgeReporter = TransitionReporter(simulator, edgeReportPath) 
+        
+        mobileUtilReportPath = reportPath + 'reportmobile-util-' + Common.simulationRunId() + ".pkl"
+        edgeUtilReportPath = reportPath + 'reportedge-util-' + Common.simulationRunId() + ".pkl"
+        mobileUtilReporter = UtilizationReporter(mobileUtilReportPath) 
+        edgeUtilReporter = UtilizationReporter(edgeUtilReportPath) 
 
         behaviourRemote = MultiplexerSelectorBehaviour()
         behaviourRemote.trainMethod = MultiplexerSelectorBehaviour.TRAIN_REMOTE
@@ -135,7 +142,9 @@ class SimulationAssist:
                                         mobileSelectorGenerator= selectors[Config.get("mobile_selector")],
                                         edgeRewardFunction= edgeReward,
                                         mobileRewardFunction=mobileReward)
-        taskEnvironment.initialize(simulator, [mobileReporter.addTransition], [edgeReporter.addTransition])
+        taskEnvironment.initialize(simulator, 
+            [mobileReporter.addTransition], [edgeReporter.addTransition],
+            [mobileUtilReporter.addUtilization], [edgeUtilReporter.addUtilization])
         simulator.run()
 
         Logger.log("mobile delay: " + str(mobileReporter.averageDelay()), 0)
@@ -144,4 +153,6 @@ class SimulationAssist:
         Logger.closeLogOutputs()
         mobileReporter.pickle()
         edgeReporter.pickle()
+        mobileUtilReporter.pickle()
+        edgeUtilReporter.pickle()
             

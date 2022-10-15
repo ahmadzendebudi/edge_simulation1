@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from collections import deque
 import sys
-from typing import Any, Callable, Sequence, Tuple
+from typing import Any, Callable, Collection, Sequence, Tuple
 
 from simulator.common import Common
 from simulator.config import Config
@@ -85,8 +85,9 @@ class MobileNode(TaskNode, TaskDistributerPlug, TaskGeneratorPlug, TaskMultiplex
         if nextUpdateTime != None:
             self._simulator.registerEvent(nextUpdateTime, self._connectionProcess.id())
         
-    def initializeProcesses(self, simulator: Simulator, multiplexSelector: TaskMultiplexerSelector):
-        super().initializeProcesses(simulator)
+    def initializeProcesses(self, simulator: Simulator, multiplexSelector: TaskMultiplexerSelector, 
+                            utilizationWatchers: Collection[Callable[[Task, float, float], Any]]):
+        super().initializeProcesses(simulator, utilizationWatchers)
         
         self._taskDistributer = TaskDistributer(self)
         simulator.registerProcess(self._taskDistributer)
