@@ -9,7 +9,10 @@ from simulator import Config
 from simulator.environment.task_environment import TaskEnvironment
 from simulator.logger import LogOutputConsolePrint, LogOutputTextFile, Logger
 from simulator.processes.task_generator import TaskGenerator
+from simulator.reporters.utilization_reporter import UtilizationReporter
 from simulator.task_multiplexing.selector import MultiplexerSelectorBehaviour
+from simulator.task_multiplexing.selector_regression import TaskMultiplexerSelectorRegression
+from simulator.task_multiplexing.selector_reinforce import TaskMultiplexerSelectorReinforce
 from simulator.world_builds.box_world import BoxWorld
 from simulator.reporters import TransitionReporter
 from simulator.task_multiplexing import TaskMultiplexerSelectorDql
@@ -92,10 +95,16 @@ class SimulationAssist:
         edgeReward, mobileReward = world.defaultRewards()
 
         simulator = Simulator()
+        
         mobileReportPath = reportPath + 'reportmobile' + Common.simulationRunId() + ".pkl"
         edgeReportPath = reportPath + 'reportedge' + Common.simulationRunId() + ".pkl"
         mobileReporter = TransitionReporter(simulator, mobileReportPath) 
         edgeReporter = TransitionReporter(simulator, edgeReportPath) 
+        
+        mobileUtilReportPath = reportPath + 'reportmobile-util-' + Common.simulationRunId() + ".pkl"
+        edgeUtilReportPath = reportPath + 'reportedge-util-' + Common.simulationRunId() + ".pkl"
+        mobileUtilReporter = UtilizationReporter(mobileUtilReportPath) 
+        edgeUtilReporter = UtilizationReporter(edgeUtilReportPath) 
 
         behaviourRemote = MultiplexerSelectorBehaviour()
         behaviourRemote.trainMethod = MultiplexerSelectorBehaviour.TRAIN_REMOTE
@@ -115,6 +124,12 @@ class SimulationAssist:
                                                             Config.get("dql_training_interval"), behaviourLocal),
             "dql_shared": lambda state, rewardFunction: TaskMultiplexerSelectorDql(state, rewardFunction, Config.get("dql_training_buffer_size"), 
                                                             Config.get("dql_training_interval"), behaviourShared),
+            "reinforce_remote": lambda state, rewardFunction: TaskMultiplexerSelectorReinforce(state, rewardFunction, Config.get("dql_training_buffer_size"), 
+                                                            Config.get("dql_training_interval"), behaviourRemote),
+            "reinforce_local": lambda state, rewardFunction: TaskMultiplexerSelectorReinforce(state, rewardFunction, Config.get("dql_training_buffer_size"), 
+                                                            Config.get("dql_training_interval"), behaviourLocal),
+            "reinforce_shared": lambda state, rewardFunction: TaskMultiplexerSelectorReinforce(state, rewardFunction, Config.get("dql_training_buffer_size"), 
+                                                            Config.get("dql_training_interval"), behaviourShared),
             "local": lambda state, rewardFunction: TaskMultiplexerSelectorLocal(rewardFunction),
             "remote": lambda state, rewardFunction: TaskMultiplexerSelectorRemote(rewardFunction),
             "random": lambda state, rewardFunction: TaskMultiplexerSelectorRandom(rewardFunction),
@@ -127,7 +142,9 @@ class SimulationAssist:
                                         mobileSelectorGenerator= selectors[Config.get("mobile_selector")],
                                         edgeRewardFunction= edgeReward,
                                         mobileRewardFunction=mobileReward)
-        taskEnvironment.initialize(simulator, [mobileReporter.addTransition], [edgeReporter.addTransition])
+        taskEnvironment.initialize(simulator, 
+            [mobileReporter.addTransition], [edgeReporter.addTransition],
+            [mobileUtilReporter.addUtilization], [edgeUtilReporter.addUtilization])
         simulator.run()
 
         Logger.log("mobile delay: " + str(mobileReporter.averageDelay()), 0)
@@ -136,4 +153,6 @@ class SimulationAssist:
         Logger.closeLogOutputs()
         mobileReporter.pickle()
         edgeReporter.pickle()
+        mobileUtilReporter.pickle()
+        edgeUtilReporter.pickle()
             

@@ -2,6 +2,7 @@ from typing import Any, Callable, Collection,  Tuple
 
 from simulator.core.process import Process
 from simulator.core.simulator import Simulator
+from simulator.core.task import Task
 from simulator.environment.edge_node import EdgeNode
 from simulator.environment.mobile_node import MobileNode
 from simulator.core.environment import Environment
@@ -23,11 +24,18 @@ class TaskEnvironment(Environment):
     
     def initialize(self, simulator: Simulator, 
                    mobileTransitionWatchers: Collection[Callable[[Transition], Any]] = None,
-                   edgeTransitionWatchers: Collection[Callable[[Transition], Any]] = None) -> None:
+                   edgeTransitionWatchers: Collection[Callable[[Transition], Any]] = None,
+                   mobileUtilizationWatchers: Collection[Callable[[Task, float, float], Any]] = None,
+                   edgeUtilizationWatchers: Collection[Callable[[Task, float, float], Any]] = None) -> None:
         if mobileTransitionWatchers == None:
             mobileTransitionWatchers = []
         if edgeTransitionWatchers == None:
             edgeTransitionWatchers = []
+        if mobileUtilizationWatchers == None:
+            mobileUtilizationWatchers = []
+        if edgeUtilizationWatchers == None:
+            edgeUtilizationWatchers = []
+
         self._simulator = simulator
         for node in self._edgeNodes + self._mobileNodes:
             simulator.registerNode(node)
@@ -52,7 +60,7 @@ class TaskEnvironment(Environment):
             if edge_multiplex_selector.behaviour().trainMethod != MultiplexerSelectorBehaviour.TRAIN_SHARED:
                 edge_selector = self._edgeSelectorGenerator(EdgeNode.fetchStateShape(), self._edgeRewardFunction)
             
-            edgeNode.initializeProcesses(simulator, edge_selector, mobile_selector)
+            edgeNode.initializeProcesses(simulator, edge_selector, edgeUtilizationWatchers, mobile_selector)
             
 
         
@@ -64,7 +72,7 @@ class TaskEnvironment(Environment):
             if moblie_multiplex_selector.behaviour().trainMethod != MultiplexerSelectorBehaviour.TRAIN_SHARED:
                 mobile_selector = self._mobileSelectorGenerator(MobileNode.fetchStateShape(), self._mobileRewardFunction)
             
-            mobileNode.initializeProcesses(simulator, mobile_selector)
+            mobileNode.initializeProcesses(simulator, mobile_selector, mobileUtilizationWatchers)
         
     
     def edgeNode(self, id: int) -> EdgeNode:

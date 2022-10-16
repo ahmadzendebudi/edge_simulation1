@@ -53,7 +53,11 @@
     "dql_training_interval": 5,
     "dql_training_buffer_size": 10000,
     "dql_learning_discount": 0.8,
+    "dql_method_ddql": false,
 
+    "regression_training_buffer_size": 1000,
+    "regression_training_interval": 100,
+    
     "delay_coefficient": 1,
     "power_coefficient": 3,
 

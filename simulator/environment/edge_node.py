@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from asyncio.log import logger
 import sys
-from typing import Any, Callable, Sequence, Tuple
+from typing import Any, Callable, Collection, Sequence, Tuple
 from simulator.common import Common
 from simulator.config import Config
 from simulator.core import Connection
@@ -61,8 +61,9 @@ class EdgeNode(TaskNode, TaskMultiplexerPlug, RouterEdgePlug):
             self._simulator.registerEvent(nextUpdateTime, self._connectionProcess.id())
         
     def initializeProcesses(self, simulator: Simulator, edgeMultiplexSelector: TaskMultiplexerSelector,
+                            utilizationWatchers: Collection[Callable[[Task, float, float], Any]],
                             mobileMultiplexSelector: TaskMultiplexerSelector = None):
-        super().initializeProcesses(simulator)
+        super().initializeProcesses(simulator, utilizationWatchers)
         
         self._multiplexSelector = edgeMultiplexSelector
         self._taskMultiplexer = TaskMultiplexer(self, edgeMultiplexSelector, self)
